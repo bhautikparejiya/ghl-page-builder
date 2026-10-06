@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // PGlite (local-dev Postgres) ships WASM; load it from node_modules instead of bundling.
+  serverExternalPackages: ["@electric-sql/pglite"],
   // The app runs inside a HighLevel iframe (Custom Page), so it must be frameable
   // by HighLevel domains (including white-label agency domains → allow any https origin).
   async headers() {

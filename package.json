@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@upstash/redis": "^1.39.0",
+    "@electric-sql/pglite": "^0.5.8",
+    "@neondatabase/serverless": "^1.2.0",
     "crypto-js": "^4.2.0",
     "grapesjs": "^0.23.6",
     "grapesjs-custom-code": "^1.0.2",

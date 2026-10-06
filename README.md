@@ -73,14 +73,16 @@ npm run dev
    **Leads** on the dashboard. Locally the lead shows **Not synced**, because no HighLevel token exists for
    `dev-location`. That's expected.
 
-> Local data is stored in `.data/db.json`. Delete that file to reset.
+> Locally, data is stored in an embedded Postgres (PGlite) under `.data/pg`, so no database setup is needed. Delete that folder to reset.
+> To test against Neon instead, put your Neon connection string in `DATABASE_URL` in `.env.local`.
 
 ## 2. Deploy to Vercel (free)
 
 1. Push this folder to a **GitHub** repo (`git init && git add . && git commit -m "init"`, then create the repo and push).
 2. At https://vercel.com, click **Add New → Project**, import the repo, and keep the defaults (Next.js). Deploy.
-3. **Storage:** open the Vercel project, go to **Storage → Create → Upstash (Redis)**, choose the free plan, and connect it to the project.
-   This adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` automatically.
+3. **Database:** open the Vercel project, go to **Storage → Create Database → Neon (Serverless Postgres)**, choose the free plan, and connect it
+   to the project (all environments). This adds `DATABASE_URL` automatically. The tables are created on first request,
+   so there's no migration step. The schema is in `src/lib/db.ts`.
 4. **Environment variables** (Project → Settings → Environment Variables):
 
    | Name | Value |
@@ -95,8 +97,8 @@ npm run dev
 5. Redeploy (Deployments → ⋯ → Redeploy) so the variables take effect.
 
 > ⚠️ Vercel's free **Hobby** plan is for **non-commercial** use only. Testing and review on Hobby is fine. Once you
-> charge customers, upgrade to Vercel **Pro** ($20/mo), or move to another host. Upstash's free tier allows 10k requests/day.
-> Upgrade to pay-as-you-go when you have real traffic.
+> charge customers, upgrade to Vercel **Pro** ($20/mo), or move to another host. Neon's free plan includes 0.5 GB storage per project and a monthly compute allowance,
+> and it scales to zero when idle (the first request after idle takes about 0.5 s). Upgrade when you have real traffic.
 
 ## 3. Create the app in the HighLevel Developer Portal
 

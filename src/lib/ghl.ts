@@ -1,5 +1,5 @@
 import { config, GHL_API, GHL_API_VERSION } from "./config";
-import { kv } from "./store";
+import { num, query } from "./db";
 
 /** Stored OAuth installation (one per sub-account, plus one per agency for bulk installs). */
 export interface Install {
@@ -23,8 +23,37 @@ interface TokenResponse {
   companyId?: string;
 }
 
-const locKey = (locationId: string) => `install:loc:${locationId}`;
-const coKey = (companyId: string) => `install:co:${companyId}`;
+const locKey = (locationId: string) => `loc:${locationId}`;
+const coKey = (companyId: string) => `co:${companyId}`;
+
+interface InstallRow {
+  user_type: "Location" | "Company";
+  location_id: string | null;
+  company_id: string | null;
+  access_token: string;
+  refresh_token: string;
+  expires_at: unknown;
+  scope: string | null;
+  installed_at: unknown;
+}
+
+function fromRow(r: InstallRow): Install {
+  return {
+    accessToken: r.access_token,
+    refreshToken: r.refresh_token,
+    expiresAt: num(r.expires_at),
+    userType: r.user_type,
+    locationId: r.location_id ?? undefined,
+    companyId: r.company_id ?? undefined,
+    scope: r.scope ?? undefined,
+    installedAt: num(r.installed_at),
+  };
+}
+
+async function readInstall(key: string): Promise<Install | null> {
+  const rows = await query<InstallRow>("SELECT * FROM installs WHERE key = $1", [key]);
+  return rows[0] ? fromRow(rows[0]) : null;
+}
 
 function toInstall(t: TokenResponse): Install {
   return {
@@ -59,17 +88,40 @@ export async function exchangeCode(code: string): Promise<Install> {
 }
 
 export async function saveInstall(install: Install) {
-  if (install.userType === "Location" && install.locationId) await kv().set(locKey(install.locationId), install);
-  if (install.userType === "Company" && install.companyId) await kv().set(coKey(install.companyId), install);
+  const key =
+    install.userType === "Location" && install.locationId
+      ? locKey(install.locationId)
+      : install.userType === "Company" && install.companyId
+        ? coKey(install.companyId)
+        : null;
+  if (!key) return;
+  await query(
+    `INSERT INTO installs (key, user_type, location_id, company_id, access_token, refresh_token, expires_at, scope, installed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (key) DO UPDATE SET
+       access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
+       expires_at = EXCLUDED.expires_at, scope = EXCLUDED.scope, user_type = EXCLUDED.user_type`,
+    [
+      key,
+      install.userType,
+      install.locationId ?? null,
+      install.companyId ?? null,
+      install.accessToken,
+      install.refreshToken,
+      install.expiresAt,
+      install.scope ?? null,
+      install.installedAt,
+    ],
+  );
 }
 
 export async function removeInstall(locationId?: string, companyId?: string) {
-  if (locationId) await kv().del(locKey(locationId));
-  else if (companyId) await kv().del(coKey(companyId));
+  if (locationId) await query("DELETE FROM installs WHERE key = $1", [locKey(locationId)]);
+  else if (companyId) await query("DELETE FROM installs WHERE key = $1", [coKey(companyId)]);
 }
 
 export async function getInstall(locationId: string): Promise<Install | null> {
-  return kv().get<Install>(locKey(locationId));
+  return readInstall(locKey(locationId));
 }
 
 async function refresh(install: Install): Promise<Install> {
@@ -85,7 +137,7 @@ async function refresh(install: Install): Promise<Install> {
 
 /** For agency (bulk) installs: mint a sub-account token from the agency token. */
 async function locationTokenFromCompany(companyId: string, locationId: string): Promise<Install | null> {
-  let company = await kv().get<Install>(coKey(companyId));
+  let company = await readInstall(coKey(companyId));
   if (!company) return null;
   if (company.expiresAt < Date.now()) company = await refresh(company);
   const res = await fetch(`${GHL_API}/oauth/locationToken`, {
