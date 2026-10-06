@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     return json({ error: "Please enter a valid email address." }, 400);
   }
 
-  const contact: Record<string, unknown> = { locationId: page.locationId, source: `Page Builder Pro: ${page.name}` };
+  const contact: Record<string, unknown> = { locationId: page.locationId, source: `PageForge: ${page.name}` };
   const extras: string[] = [];
   for (const [k, v] of Object.entries(fields)) {
     if (!v) continue;

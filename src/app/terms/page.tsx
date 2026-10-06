@@ -1,13 +1,13 @@
-export const metadata = { title: "Terms of Service · Page Builder Pro" };
+export const metadata = { title: "Terms of Service · PageForge" };
 
 // TEMPLATE: review with a legal professional and replace the bracketed placeholders before publishing.
 export default function Terms() {
   return (
     <div className="landing" style={{ textAlign: "left" }}>
       <h1>Terms of Service</h1>
-      <p className="muted">Last updated: [DATE]</p>
+      <p className="muted">Last updated: 06-10-2026</p>
       <p>
-        By installing Page Builder Pro from the HighLevel Marketplace you agree to these terms with [YOUR COMPANY].
+        By installing PageForge from the HighLevel Marketplace you agree to these terms with Bhautik.
       </p>
       <h3>The service</h3>
       <p>
@@ -25,7 +25,7 @@ export default function Terms() {
         limited to the fees you paid in the previous 3 months.
       </p>
       <h3>Contact</h3>
-      <p>[SUPPORT EMAIL]</p>
+      <p>bhautikparejiya2614@gmail.com</p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /*!
- * Page Builder Pro — loader
+ * PageForge — loader
  * Usage (HighLevel "Custom Code" element):
  *   <div data-gpb-page="PAGE_ID"></div>
  *   <script src="https://YOUR-APP.vercel.app/loader.js" async></script>
@@ -72,7 +72,7 @@
         });
       })
       .catch(function (err) {
-        console.warn("[PageBuilderPro] Could not load page " + id + ":", err.message);
+        console.warn("[PageForge] Could not load page " + id + ":", err.message);
       });
   }
 

@@ -15,7 +15,7 @@ export const POST = handle(async (req: Request) => {
     throw new HttpError(401, (err as Error).message);
   }
   if (!ctx.activeLocation) {
-    throw new HttpError(400, "Please open Page Builder Pro from inside a sub-account.");
+    throw new HttpError(400, "Please open PageForge from inside a sub-account.");
   }
 
   const user = {

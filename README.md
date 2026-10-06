@@ -1,4 +1,4 @@
-# Page Builder Pro for HighLevel
+# PageForge for HighLevel
 
 A HighLevel Marketplace app that adds an Elementor-style visual page builder to HighLevel.
 Users design pages inside HighLevel (as a Custom Page in the left menu), then publish them into any HighLevel
@@ -115,7 +115,7 @@ npm run dev
    **AppInstall** and **AppUninstall** events.
 4. **Custom Page** (sometimes listed as "Custom Pages / Custom Menu Link"):
    - **URL:** `https://your-project.vercel.app/app`
-   - **Name:** Page Builder Pro. **Placement:** left navigation (sub-account).
+   - **Name:** PageForge. **Placement:** left navigation (sub-account).
 5. Redeploy on Vercel after setting the keys.
 
 ## 4. Test inside HighLevel (end to end)
@@ -123,7 +123,7 @@ npm run dev
 1. In the Developer Portal, open your app and copy the **Install link**, or use the "Test app" button. Open it while
    logged into your HighLevel agency, pick a **test sub-account**, and approve. You should land on `/installed`
    showing a success message.
-2. In that sub-account, open **Page Builder Pro** from the left menu. You should be signed in automatically through SSO and see
+2. In that sub-account, open **PageForge** from the left menu. You should be signed in automatically through SSO and see
    **● CRM connected**.
 3. Create a page, change something, and **Publish**.
 4. In HighLevel, go to **Sites → Funnels**, open a funnel step in the builder, and add a full-width section with 0 padding. Add a

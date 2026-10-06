@@ -89,7 +89,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState(
         enabled
           ? { status: "dev" }
-          : { status: "error", error: "Please open Page Builder Pro from the left menu of your HighLevel sub-account." },
+          : { status: "error", error: "Please open PageForge from the left menu of your HighLevel sub-account." },
       );
     };
 
@@ -158,7 +158,7 @@ function FullScreen({ children }: { children: React.ReactNode }) {
   return (
     <div className="center-screen">
       <div className="center-card">
-        <div className="logo-mark">P</div>
+        <img className="logo-mark" src="/logo.svg" alt="PageForge" />
         <p>{children}</p>
       </div>
     </div>
@@ -182,7 +182,7 @@ function DevLogin({ onLogin }: { onLogin: (token: string, user: SessionUser) => 
   return (
     <div className="center-screen">
       <form className="center-card" onSubmit={submit}>
-        <div className="logo-mark">P</div>
+        <img className="logo-mark" src="/logo.svg" alt="PageForge" />
         <h2>Developer login</h2>
         <p className="muted">
           You are outside HighLevel and <code>ALLOW_DEV_LOGIN=true</code>. Enter a sub-account (location) id. Use a real

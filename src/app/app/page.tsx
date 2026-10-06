@@ -90,9 +90,9 @@ export default function Dashboard() {
     <div className="dash">
       <header className="dash-head">
         <div className="brand">
-          <div className="logo-mark">P</div>
+          <img className="logo-mark" src="/logo.svg" alt="PageForge" />
           <div>
-            <h1>Page Builder Pro</h1>
+            <h1>PageForge</h1>
             <p className="muted">Design advanced pages, then publish them into any HighLevel funnel or website.</p>
           </div>
         </div>

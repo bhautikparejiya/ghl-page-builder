@@ -55,6 +55,7 @@ textarea.input { height: auto; padding: 10px 12px; }
   width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none;
   background: linear-gradient(135deg, #4f46e5, #06b6d4); color: #fff; font-weight: 800; font-size: 20px;
 }
+img.logo-mark { background: none; display: block; object-fit: contain; }
 .logo-mark.big { width: 64px; height: 64px; font-size: 32px; border-radius: 16px; margin: 0 auto 20px; }
 
 /* Full-screen states */

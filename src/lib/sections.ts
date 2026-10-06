@@ -4,6 +4,8 @@
  * styling in /public/runtime.css — markup only uses classes + data attributes.
  */
 
+import { DASHBOARD, FUNNEL } from "./illustrations";
+
 const img = (seed: string, w = 1200, h = 800) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 const avatar = (n: number) => `https://i.pravatar.cc/96?img=${n}`;
 
@@ -54,7 +56,7 @@ export const W = {
   countdown: () =>
     `<div class="gpb-countdown" data-gpb="countdown" data-date="${inDays(7)}" data-evergreen="0"><div class="gpb-cd-grid"><div class="gpb-cd-unit"><span class="gpb-cd-num gpb-cd-days">00</span><span class="gpb-cd-label">Days</span></div><div class="gpb-cd-unit"><span class="gpb-cd-num gpb-cd-hours">00</span><span class="gpb-cd-label">Hours</span></div><div class="gpb-cd-unit"><span class="gpb-cd-num gpb-cd-minutes">00</span><span class="gpb-cd-label">Minutes</span></div><div class="gpb-cd-unit"><span class="gpb-cd-num gpb-cd-seconds">00</span><span class="gpb-cd-label">Seconds</span></div></div><div class="gpb-cd-expired">This offer has expired.</div></div>`,
 
-  beforeAfter: `<div class="gpb-ba" data-gpb="before-after" data-start="50"><img src="${img("gpb-before", 1000, 600)}?grayscale" alt="Before"><div class="gpb-ba-after"><img src="${img("gpb-before", 1000, 600)}" alt="After"></div><div class="gpb-ba-handle"></div><span class="gpb-ba-label gpb-ba-label--before">Before</span><span class="gpb-ba-label gpb-ba-label--after">After</span></div>`,
+  beforeAfter: `<div class="gpb-ba" data-gpb="before-after" data-start="50"><img src="${img("modern", 1000, 600)}?grayscale" alt="Before"><div class="gpb-ba-after"><img src="${img("modern", 1000, 600)}" alt="After"></div><div class="gpb-ba-handle"></div><span class="gpb-ba-label gpb-ba-label--before">Before</span><span class="gpb-ba-label gpb-ba-label--after">After</span></div>`,
 
   progress: `<div><div class="gpb-progress" data-gpb="progress" data-value="92"><div class="gpb-progress-label"><span>Strategy</span><span>92%</span></div><div class="gpb-progress-track"><div class="gpb-progress-bar"></div></div></div><div class="gpb-progress" data-gpb="progress" data-value="80"><div class="gpb-progress-label"><span>Design</span><span>80%</span></div><div class="gpb-progress-track"><div class="gpb-progress-bar"></div></div></div><div class="gpb-progress" data-gpb="progress" data-value="68"><div class="gpb-progress-label"><span>Development</span><span>68%</span></div><div class="gpb-progress-track"><div class="gpb-progress-bar"></div></div></div></div>`,
 
@@ -87,7 +89,7 @@ export const popupWithForm = () => `<div><a class="gpb-btn" href="#" data-gpb-op
 export const S = {
   navbar: `<nav class="gpb-nav" data-gpb="navbar" data-sticky="true"><a class="gpb-nav-brand" href="#">Brand<span style="color:var(--gpb-primary)">.</span></a><button class="gpb-nav-toggle" type="button" aria-label="Menu">☰</button><div class="gpb-nav-links"><a href="#features">Features</a><a href="#testimonials">Reviews</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a class="gpb-btn" href="#signup">Get started</a></div></nav>`,
 
-  heroSplit: `<section class="gpb-section"><div class="gpb-container"><div class="gpb-row gpb-row--center"><div class="gpb-col" data-gpb-anim="fade-up"><span class="gpb-eyebrow">New for 2026</span><h1>Launch pages that <span class="gpb-gradient-text">actually convert</span></h1><p class="gpb-lead">Build stunning, high-converting landing pages with advanced widgets, animations and pixel-perfect responsive control.</p>${W.buttonGroup}</div><div class="gpb-col" data-gpb-anim="zoom-in"><img class="gpb-img-round gpb-shadow" src="${img("gpb-hero")}" alt="Product preview"></div></div></div></section>`,
+  heroSplit: `<section class="gpb-section"><div class="gpb-container"><div class="gpb-row gpb-row--center"><div class="gpb-col" data-gpb-anim="fade-up"><span class="gpb-eyebrow">New for 2026</span><h1>Launch pages that <span class="gpb-gradient-text">actually convert</span></h1><p class="gpb-lead">Build stunning, high-converting landing pages with advanced widgets, animations and pixel-perfect responsive control.</p>${W.buttonGroup}</div><div class="gpb-col" data-gpb-anim="zoom-in"><img class="gpb-img-round gpb-shadow" src="${DASHBOARD}" alt="Product dashboard preview"></div></div></div></section>`,
 
   heroCentered: `<section class="gpb-section gpb-section--dark gpb-center"><div class="gpb-container gpb-container--narrow"><span class="gpb-eyebrow">Free masterclass</span><h1 data-gpb="typing" data-words="Coaches|Agencies|Creators|Consultants">The growth system for <span class="gpb-typing-text">Coaches</span></h1><p class="gpb-lead">Discover the exact 3-step framework we used to add $1M in pipeline — without paid ads.</p><div class="gpb-btn-group"><a class="gpb-btn gpb-btn--lg" href="#signup">Save my free seat</a></div></div></section>`,
 
@@ -112,7 +114,7 @@ export const S = {
 
   faq: `<section class="gpb-section" id="faq"><div class="gpb-container gpb-container--narrow"><div class="gpb-center"><span class="gpb-eyebrow">FAQ</span><h2>Frequently asked questions</h2></div><div class="gpb-spacer"></div>${W.accordion()}</div></section>`,
 
-  tabsSection: `<section class="gpb-section"><div class="gpb-container"><div class="gpb-row gpb-row--center"><div class="gpb-col"><span class="gpb-eyebrow">How it works</span><h2>One platform, every step</h2>${W.tabs}</div><div class="gpb-col"><img class="gpb-img-round gpb-shadow" src="${img("gpb-tabs", 1000, 760)}" alt="Platform"></div></div></div></section>`,
+  tabsSection: `<section class="gpb-section"><div class="gpb-container"><div class="gpb-row gpb-row--center"><div class="gpb-col"><span class="gpb-eyebrow">How it works</span><h2>One platform, every step</h2>${W.tabs}</div><div class="gpb-col"><img class="gpb-img-round gpb-shadow" src="${FUNNEL}" alt="Funnel steps"></div></div></div></section>`,
 
   countdownSection: `<section class="gpb-section gpb-section--dark gpb-center"><div class="gpb-container gpb-container--narrow"><span class="gpb-eyebrow">Limited time</span><h2>Doors close soon</h2><p class="gpb-lead">Lock in founding-member pricing before the timer hits zero.</p>${W.countdown()}<div class="gpb-spacer"></div><a class="gpb-btn gpb-btn--lg gpb-btn--secondary" href="#signup">Claim my spot</a></div></section>`,
 

@@ -1,5 +1,5 @@
 /*!
- * Page Builder Pro — widget runtime
+ * PageForge — widget runtime
  * Powers interactive widgets on published pages (inside Shadow DOM via loader.js, or standalone /p/:id)
  * and inside the editor canvas (loaded as runtime.js?editor=1).
  */
@@ -463,7 +463,7 @@
         try {
           widgets[type](el, ctx, i);
         } catch (err) {
-          console.warn("[PageBuilderPro] widget error", type, err);
+          console.warn("[PageForge] widget error", type, err);
         }
       }
     });
