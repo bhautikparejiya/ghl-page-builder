@@ -19,6 +19,23 @@ const stripBody = (html: string) => html.replace(/^\s*<body[^>]*>/i, "").replace
 /** Form settings are kept server-side only; strip them from the public HTML. */
 const stripFormConfig = (html: string) => html.replace(/\sdata-(tags|workflow|success|redirect)="[^"]*"/g, "");
 
+/** Logical page width per device. The canvas is zoomed out to fit when the editor area is narrower. */
+const DEVICE_WIDTH: Record<Device, number> = { desktop: 1240, tablet: 820, mobile: 390 };
+
+/**
+ * Keeps "Desktop" rendering a real desktop layout on laptop screens (and inside HighLevel's iframe):
+ * the frame keeps its device width and the canvas zooms out instead of triggering mobile breakpoints.
+ */
+function fitCanvas(editor: GEditor) {
+  const el = editor.Canvas.getElement();
+  if (!el) return;
+  const id = (editor.getDevice() || "desktop") as Device;
+  const zoom = Math.min(1, (el.clientWidth - 32) / (DEVICE_WIDTH[id] ?? DEVICE_WIDTH.desktop));
+  // Frame height fills the visible canvas (taller in page units when zoomed out).
+  editor.Devices.get(id)?.set("height", `${Math.floor((el.clientHeight - 32) / zoom)}px`);
+  setTimeout(() => editor.Canvas.fitViewport({ ignoreHeight: true, gap: 16, zoom: (z) => Math.min(z, 100) }), 60);
+}
+
 function applyThemeToCanvas(editor: GEditor, theme: Theme) {
   const doc = editor.Canvas.getDocument();
   if (!doc?.head) return;
@@ -134,9 +151,9 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         traitManager: { appendTo: "#gpb-traits" },
         deviceManager: {
           devices: [
-            { id: "desktop", name: "Desktop", width: "" },
-            { id: "tablet", name: "Tablet", width: "820px", widthMedia: "1023px" },
-            { id: "mobile", name: "Mobile", width: "390px", widthMedia: "767px" },
+            { id: "desktop", name: "Desktop", width: `${DEVICE_WIDTH.desktop}px` },
+            { id: "tablet", name: "Tablet", width: `${DEVICE_WIDTH.tablet}px`, widthMedia: "1023px" },
+            { id: "mobile", name: "Mobile", width: `${DEVICE_WIDTH.mobile}px`, widthMedia: "767px" },
           ],
         },
         canvas: {
@@ -174,14 +191,19 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         applyThemeToCanvas(editor!, pg.theme);
         editor!.runCommand("core:component-outline");
         editor!.BlockManager.getCategories().forEach((c: any, i: number) => c.set("open", i < 3)); // eslint-disable-line @typescript-eslint/no-explicit-any
+        fitCanvas(editor!);
         readyAt.current = Date.now();
       });
       editor.on("update", scheduleSave);
       editor.on("stop:preview", () => setPreview(false));
     })();
 
+    const onResize = () => editorRef.current && fitCanvas(editorRef.current);
+    window.addEventListener("resize", onResize);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("resize", onResize);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       editor?.destroy();
       editorRef.current = null;
@@ -199,7 +221,10 @@ export default function PageEditor({ pageId }: { pageId: string }) {
 
   const switchDevice = (d: Device) => {
     setDevice(d);
-    editorRef.current?.setDevice(d);
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.setDevice(d);
+    setTimeout(() => fitCanvas(ed), 30);
   };
 
   const togglePreview = () => {
@@ -208,7 +233,10 @@ export default function PageEditor({ pageId }: { pageId: string }) {
     if (preview) ed.stopCommand("preview");
     else ed.runCommand("preview");
     setPreview(!preview);
-    setTimeout(() => ed.refresh(), 50);
+    setTimeout(() => {
+      fitCanvas(ed);
+      ed.refresh();
+    }, 50);
   };
 
   const updateTheme = async (patch: Partial<Theme>) => {
