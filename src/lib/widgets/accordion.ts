@@ -1,21 +1,25 @@
 import { color, px, spacingDecls, typography } from "./css";
-import { esc, textToParagraphs } from "./render";
+import { esc, sanitizeRich, textToParagraphs } from "./render";
 import { icon } from "./shared";
 import { defineWidget, type Responsive, type Settings, type Spacing, type Typography } from "./types";
 
-type Item = { title?: string; body?: string };
+type Item = { title?: string; html?: string; body?: string };
+
+/** Answer HTML; the first version stored plain text in `body`. */
+export const accordionAnswer = (it: Item) => (typeof it.html === "string" ? sanitizeRich(it.html) : textToParagraphs(it.body));
 
 /** Reuses the existing accordion runtime (data-gpb="accordion" + gpb-acc-* markup). */
 export default defineWidget({
   type: "accordion",
   label: "Accordion",
+  keywords: "faq questions answers collapse toggle expand",
   icon: icon('<rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="11" width="18" height="9" rx="1"/><path d="M15 6.5h3"/>'),
   category: "Widgets",
   defaults: () => ({
     items: [
-      { title: "How long does setup take?", body: "Most customers publish their first page in under 15 minutes using our templates." },
-      { title: "Do leads go into my CRM?", body: "Yes. Every form submission creates or updates a contact, applies your tags and can start a workflow." },
-      { title: "Can I cancel anytime?", body: "Absolutely. There are no contracts. Cancel with one click." },
+      { title: "How long does setup take?", html: "<p>Most customers publish their first page in under 15 minutes using our templates.</p>" },
+      { title: "Do leads go into my CRM?", html: "<p>Yes. Every form submission creates or updates a contact, applies your tags and can start a workflow.</p>" },
+      { title: "Can I cancel anytime?", html: "<p>Absolutely. There are no contracts. Cancel with one click.</p>" },
     ],
     firstOpen: true,
     singleOpen: true,
@@ -31,10 +35,10 @@ export default defineWidget({
           label: "Items",
           itemLabel: "title",
           addLabel: "Add item",
-          newItem: (): Settings => ({ title: "New question", body: "Write the answer here." }),
+          newItem: (): Settings => ({ title: "New question", html: "<p>Write the answer here.</p>" }),
           fields: [
             { type: "text", key: "title", label: "Title" },
-            { type: "text", key: "body", label: "Content", multiline: true, help: "Leave a blank line to start a new paragraph." },
+            { type: "richtext", key: "html", label: "Content" },
           ],
         },
       ],
@@ -44,6 +48,12 @@ export default defineWidget({
       controls: [
         { type: "toggle", key: "firstOpen", label: "First item open on load" },
         { type: "toggle", key: "singleOpen", label: "Only one item open at a time" },
+        {
+          type: "toggle",
+          key: "faqSchema",
+          label: "Mark up as FAQ for Google",
+          help: "Adds FAQ structured data to the hosted page so questions can appear in search results.",
+        },
         {
           type: "buttons",
           key: "icon",
@@ -89,7 +99,7 @@ export default defineWidget({
     const body = items
       .map(
         (it, i) =>
-          `<div class="gpb-acc-item${i === 0 && s.firstOpen ? " is-open" : ""}"><button class="gpb-acc-head" type="button">${esc(it.title)}</button><div class="gpb-acc-body"><div class="gpb-acc-content">${textToParagraphs(it.body)}</div></div></div>`,
+          `<div class="gpb-acc-item${i === 0 && s.firstOpen ? " is-open" : ""}"><button class="gpb-acc-head" type="button">${esc(it.title)}</button><div class="gpb-acc-body"><div class="gpb-acc-content">${accordionAnswer(it)}</div></div></div>`,
       )
       .join("");
     const iconCls = s.icon === "chevron" ? " pf-acc-icon-chevron" : "";

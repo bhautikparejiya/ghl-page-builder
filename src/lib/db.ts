@@ -54,6 +54,59 @@ CREATE TABLE IF NOT EXISTS page_revisions (
   doc        JSONB NOT NULL                 -- { draft, theme }
 );
 CREATE INDEX IF NOT EXISTS page_revisions_page_idx ON page_revisions (page_id, at DESC);
+
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS company_id TEXT;
+
+-- Brand kits: key 'loc:<locationId>' (sub-account) or 'co:<companyId>' (agency default for its sub-accounts)
+CREATE TABLE IF NOT EXISTS brand_kits (
+  key        TEXT PRIMARY KEY,
+  kit        JSONB NOT NULL,
+  updated_at BIGINT NOT NULL
+);
+
+-- Saved sections, pages and global (linked) sections. owner_type 'location' or 'company' (shared with all sub-accounts).
+CREATE TABLE IF NOT EXISTS library_items (
+  id          TEXT PRIMARY KEY,
+  owner_type  TEXT NOT NULL,
+  owner_id    TEXT NOT NULL,
+  kind        TEXT NOT NULL,                -- 'section' | 'page'
+  name        TEXT NOT NULL,
+  category    TEXT NOT NULL DEFAULT '',
+  is_global   BOOLEAN NOT NULL DEFAULT FALSE,
+  doc         JSONB NOT NULL,               -- { components, html, css, fonts }
+  thumbnail   TEXT,
+  created_at  BIGINT NOT NULL,
+  updated_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS library_owner_idx ON library_items (owner_type, owner_id, updated_at DESC);
+
+-- A/B test counters per page / test / variant.
+CREATE TABLE IF NOT EXISTS ab_stats (
+  page_id     TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  test        TEXT NOT NULL,
+  variant     TEXT NOT NULL,
+  views       BIGINT NOT NULL DEFAULT 0,
+  conversions BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (page_id, test, variant)
+);
+
+-- Custom domains for hosted pages (domain + path → page).
+CREATE TABLE IF NOT EXISTS domains (
+  host        TEXT NOT NULL,
+  path        TEXT NOT NULL DEFAULT '/',
+  page_id     TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  location_id TEXT NOT NULL,
+  created_at  BIGINT NOT NULL,
+  PRIMARY KEY (host, path)
+);
+CREATE INDEX IF NOT EXISTS domains_page_idx ON domains (page_id);
+
+-- Cached HighLevel data used when serving pages (location info, custom values).
+CREATE TABLE IF NOT EXISTS location_cache (
+  location_id TEXT PRIMARY KEY,
+  data        JSONB NOT NULL,
+  fetched_at  BIGINT NOT NULL
+);
 `;
 
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;

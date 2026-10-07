@@ -1,0 +1,14 @@
+/* ── Countdown ── */
+.gpb-countdown { text-align: center; }
+.gpb-cd-grid { display: inline-flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.gpb-cd-unit { min-width: 88px; padding: 16px 10px; border-radius: var(--gpb-radius); background: var(--gpb-primary); color: #fff; }
+.gpb-cd-num { display: block; font-family: var(--gpb-font-heading); font-size: 2.4rem; font-weight: 800; line-height: 1; }
+.gpb-cd-label { display: block; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; opacity: .85; margin-top: 6px; }
+.gpb-cd-expired { display: none; font-weight: 700; font-size: 1.2rem; }
+.gpb-countdown.is-expired .gpb-cd-grid { display: none; }
+.gpb-countdown.is-expired .gpb-cd-expired { display: block; }
+
+@media (max-width: 767px) {
+  .gpb-cd-unit { min-width: 70px; }
+  .gpb-cd-num { font-size: 1.9rem; }
+}

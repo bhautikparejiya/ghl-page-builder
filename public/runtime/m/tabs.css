@@ -1,0 +1,9 @@
+/* ── Tabs ── */
+.gpb-tabs-nav { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--gpb-border); margin-bottom: 24px; }
+.gpb-tab-btn {
+  appearance: none; border: 0; background: none; padding: 12px 20px; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--gpb-muted); border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.gpb-tab-btn.is-active { color: var(--gpb-primary); border-bottom-color: var(--gpb-primary); }
+.gpb-tab-panel { display: none; }
+.gpb-tab-panel.is-active { display: block; animation: gpb-fade .35s ease; }

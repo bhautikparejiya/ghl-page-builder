@@ -1,6 +1,9 @@
 import type { Component, Editor } from "grapesjs";
-import { popupWithForm, S, W } from "@/lib/sections";
-import { isWidget, widgetBlock } from "./widgetComponents";
+import { SECTIONS, toEditorHtml } from "@/lib/blueprints";
+import { componentType, WIDGETS } from "@/lib/widgets";
+import { iconSvg } from "@/lib/widgets/render";
+import { icon } from "@/lib/widgets/shared";
+import { isWidget, SETTINGS_PROP, widgetBlock } from "./widgetComponents";
 
 export interface GpbPluginOptions {
   getWorkflows: () => { id: string; name: string }[];
@@ -11,7 +14,10 @@ type TraitDef = Record<string, any>;
 
 const opt = (id: string, label: string) => ({ id, label });
 
-/** "Advanced" settings available on every element. */
+/**
+ * "Advanced" settings for elements of pages built before schema widgets (classic elements).
+ * Schema widgets have these in their own Advanced tab.
+ */
 const GLOBAL_TRAITS: TraitDef[] = [
   {
     type: "select",
@@ -46,52 +52,15 @@ const GLOBAL_NAMES = GLOBAL_TRAITS.map((t) => t.name as string);
 
 const checkbox = (name: string, label: string): TraitDef => ({ type: "checkbox", name, label, valueTrue: "true", valueFalse: "false" });
 
-/* Small stroke icons for the block library */
-const ico = (d: string) =>
-  `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-const I = {
-  section: ico('<rect x="3" y="5" width="18" height="14" rx="2"/>'),
-  col2: ico('<rect x="3" y="5" width="8" height="14" rx="1.5"/><rect x="13" y="5" width="8" height="14" rx="1.5"/>'),
-  col3: ico('<rect x="2" y="5" width="6" height="14" rx="1"/><rect x="9" y="5" width="6" height="14" rx="1"/><rect x="16" y="5" width="6" height="14" rx="1"/>'),
-  col4: ico('<rect x="2" y="5" width="4" height="14" rx="1"/><rect x="7.3" y="5" width="4" height="14" rx="1"/><rect x="12.6" y="5" width="4" height="14" rx="1"/><rect x="18" y="5" width="4" height="14" rx="1"/>'),
-  colWide: ico('<rect x="3" y="5" width="6" height="14" rx="1"/><rect x="11" y="5" width="10" height="14" rx="1"/>'),
-  card: ico('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/>'),
-  heading: ico('<path d="M6 4v16M18 4v16M6 12h12"/>'),
-  text: ico('<path d="M4 6h16M4 10h16M4 14h10M4 18h13"/>'),
-  button: ico('<rect x="3" y="8" width="18" height="8" rx="4"/><path d="M9 12h6"/>'),
-  image: ico('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-8 8"/>'),
-  video: ico('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>'),
-  list: ico('<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>'),
-  divider: ico('<path d="M3 12h18"/>'),
-  spacer: ico('<path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/>'),
-  gradient: ico('<path d="M4 18 10 6l6 12M6.5 13h7"/><path d="M18 6v12"/>'),
-  typing: ico('<path d="M4 7V5h12v2M10 5v14M7 19h6M18 10v9"/>'),
-  tabs: ico('<path d="M3 8h6V5h6v3h6v11H3z"/>'),
-  accordion: ico('<rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="11" width="18" height="9" rx="1"/><path d="M15 6.5h3"/>'),
-  counter: ico('<path d="M4 17V7l3 3M10 7h4l-4 10h4M17 7h3v10"/>'),
-  countdown: ico('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>'),
-  beforeAfter: ico('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 3v18"/><path d="m9 12-2 0M15 12h2"/>'),
-  carousel: ico('<rect x="6" y="5" width="12" height="14" rx="2"/><path d="M3 8v8M21 8v8"/>'),
-  testimonial: ico('<path d="M5 6h14v10H9l-4 3z"/><path d="M9 10h6"/>'),
-  feature: ico('<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.6 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>'),
-  pricing: ico('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 7v10M14.5 9H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9.5"/>'),
-  progress: ico('<rect x="3" y="6" width="18" height="4" rx="2"/><rect x="3" y="14" width="18" height="4" rx="2"/><path d="M3 8h12M3 16h7"/>'),
-  flip: ico('<rect x="4" y="4" width="11" height="14" rx="2"/><path d="M18 7v12a2 2 0 0 1-2 2H8"/>'),
-  marquee: ico('<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
-  nav: ico('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M6 6.5h4M14 6.5h1M17 6.5h1"/>'),
-  form: ico('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>'),
-  popup: ico('<rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1.5"/>'),
-  hero: ico('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M6 9h7M6 12h5M6 15h3"/><rect x="15" y="9" width="3" height="6"/>'),
-  footer: ico('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/>'),
-  faq: ico('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.01"/>'),
-  cta: ico('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="m11 10 4 2-4 2z"/>'),
-};
+/** Library tile icon from the icon set. */
+const tile = (name: string) => `<span class="gpb-tile-icon">${iconSvg(name)}</span>`;
 
 export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
   const dc = editor.DomComponents;
   const tm = editor.TraitManager;
 
-  /* ── Custom trait: date/time picker ── */
+  /* ── Classic elements (pages built before schema widgets) ── */
+
   tm.addType("datetime", {
     createInput() {
       const el = document.createElement("input");
@@ -107,7 +76,6 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
     },
   } as any);
 
-  /* ── Widget component types (detected by data-gpb="...") ── */
   const widget = (type: string, gpb: string, traits: TraitDef[], extend?: string) =>
     dc.addType(type, {
       ...(extend ? { extend } : {}),
@@ -156,7 +124,7 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
     },
   } as any);
 
-  /* ── Lead form connected to HighLevel ── */
+  /* Classic lead form connected to HighLevel */
   const workflowOptions = () => [opt("", "— Don't add to a workflow —"), ...opts.getWorkflows().map((w) => opt(w.id, w.name))];
   dc.addType("gpb-form", {
     extend: "form",
@@ -178,7 +146,7 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
     },
   } as any);
 
-  /* ── Add "Advanced" traits to every selected element ── */
+  /* Add "Advanced" traits to classic elements when selected */
   editor.on("component:selected", (c: Component) => {
     // Schema widgets have their own Advanced tab.
     if (!c || c.get("type") === "wrapper" || c.get("type") === "textnode" || isWidget(c)) return;
@@ -204,71 +172,84 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
     }
   });
 
-  /* ── Block library ── */
+  /* ── Widget library ── */
   const bm = editor.BlockManager;
-  const add = (id: string, label: string, category: string, media: string, content: string | object) =>
-    bm.add(id, { label, category, media, content: content as any });
-
   const L = "Layout";
-  add("gpb-section", "Section", L, I.section, `<section class="gpb-section"><div class="gpb-container"></div></section>`);
-  add("gpb-2col", "2 Columns", L, I.col2, `<div class="gpb-row"><div class="gpb-col"></div><div class="gpb-col"></div></div>`);
-  add("gpb-3col", "3 Columns", L, I.col3, `<div class="gpb-row"><div class="gpb-col"></div><div class="gpb-col"></div><div class="gpb-col"></div></div>`);
-  add("gpb-4col", "4 Columns", L, I.col4, `<div class="gpb-row"><div class="gpb-col"></div><div class="gpb-col"></div><div class="gpb-col"></div><div class="gpb-col"></div></div>`);
-  add("gpb-col-wide", "1/3 + 2/3", L, I.colWide, `<div class="gpb-row"><div class="gpb-col"></div><div class="gpb-col" style="flex-grow:2"></div></div>`);
-  add("gpb-card", "Card", L, I.card, W.card);
 
-  const B = "Basic";
-  bm.add("pf-heading", widgetBlock("heading", B));
-  add("gpb-text", "Text", B, I.text, W.text);
-  bm.add("pf-button", widgetBlock("button", B));
-  add("gpb-buttons", "Button group", B, I.button, W.buttonGroup);
-  add("gpb-image", "Image", B, I.image, { type: "image", src: "https://picsum.photos/seed/gpb-new/1000/650", attributes: { class: "gpb-img-round", alt: "" }, activate: true });
-  add("gpb-video", "Video", B, I.video, W.video);
-  add("gpb-icon-list", "Icon list", B, I.list, W.iconList);
-  add("gpb-divider", "Divider", B, I.divider, W.divider);
-  add("gpb-spacer", "Spacer", B, I.spacer, W.spacer);
-  add("gpb-gradient", "Gradient heading", B, I.gradient, W.gradientHeading);
+  const ROW = { direction: { desktop: "row", mobile: "column" }, gap: { desktop: 32, mobile: 20 } };
+  const columns = (id: string, label: string, widths: (number | null)[], media: string) =>
+    bm.add(id, {
+      label,
+      category: L,
+      media,
+      content: {
+        type: componentType("container"),
+        [SETTINGS_PROP]: ROW,
+        components: widths.map((w) => ({
+          type: componentType("container"),
+          [SETTINGS_PROP]: w ? { width: { desktop: { value: w, unit: "%" }, mobile: { value: 100, unit: "%" } } } : {},
+        })),
+      } as any,
+    });
 
-  const X = "Widgets";
-  add("gpb-w-tabs", "Tabs", X, I.tabs, W.tabs);
-  bm.add("pf-accordion", widgetBlock("accordion", X));
-  add("gpb-w-counter", "Counter", X, I.counter, W.counter());
-  add("gpb-w-countdown", "Countdown", X, I.countdown, W.countdown());
-  add("gpb-w-ba", "Before / After", X, I.beforeAfter, W.beforeAfter);
-  add("gpb-w-carousel", "Carousel", X, I.carousel, S.testimonials.replace(/^<section[^>]*><div class="gpb-container">[\s\S]*?(<div class="gpb-carousel")/, "$1").replace(/<\/div><\/section>$/, ""));
-  add("gpb-w-testimonial", "Testimonial", X, I.testimonial, W.testimonial());
-  add("gpb-w-feature", "Feature box", X, I.feature, W.feature());
-  add("gpb-w-pricing", "Pricing table", X, I.pricing, S.pricing.replace(/^<section[^>]*><div class="gpb-container">/, "").replace(/<\/div><\/section>$/, ""));
-  add("gpb-w-progress", "Progress bars", X, I.progress, W.progress);
-  add("gpb-w-typing", "Typing headline", X, I.typing, W.typing);
-  add("gpb-w-flip", "Flip box", X, I.flip, W.flipBox);
-  add("gpb-w-marquee", "Logo marquee", X, I.marquee, W.marquee);
-  add("gpb-w-nav", "Navbar", X, I.nav, S.navbar);
+  bm.add("pf-section", widgetBlock("section", L));
+  bm.add("pf-container", widgetBlock("container", L));
+  columns("pf-cols-2", "2 Columns", [null, null], icon('<rect x="3" y="5" width="8" height="14" rx="1.5"/><rect x="13" y="5" width="8" height="14" rx="1.5"/>'));
+  columns(
+    "pf-cols-3",
+    "3 Columns",
+    [null, null, null],
+    icon('<rect x="2" y="5" width="6" height="14" rx="1"/><rect x="9" y="5" width="6" height="14" rx="1"/><rect x="16" y="5" width="6" height="14" rx="1"/>'),
+  );
+  columns(
+    "pf-cols-4",
+    "4 Columns",
+    [null, null, null, null],
+    icon('<rect x="2" y="5" width="4" height="14" rx="1"/><rect x="7.3" y="5" width="4" height="14" rx="1"/><rect x="12.6" y="5" width="4" height="14" rx="1"/><rect x="18" y="5" width="4" height="14" rx="1"/>'),
+  );
+  columns("pf-cols-1-2", "1/3 + 2/3", [32, null], icon('<rect x="3" y="5" width="6" height="14" rx="1"/><rect x="11" y="5" width="10" height="14" rx="1"/>'));
+  columns("pf-cols-2-1", "2/3 + 1/3", [null, 32], icon('<rect x="3" y="5" width="10" height="14" rx="1"/><rect x="15" y="5" width="6" height="14" rx="1"/>'));
+  bm.add(
+    "pf-card",
+    widgetBlock("container", L, {
+      label: "Card",
+      media: icon('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/>'),
+      settings: {
+        background: { type: "color", color: "global:background" },
+        border: { style: "solid", width: 1, color: "#e5e7eb" },
+        radius: { desktop: 16 },
+        shadow: { preset: "sm" },
+        padding: { desktop: { top: 28, right: 28, bottom: 28, left: 28 } },
+      },
+      components: [
+        { type: componentType("heading"), [SETTINGS_PROP]: { html: "Card title", tag: "h3" } },
+        { type: componentType("text"), [SETTINGS_PROP]: { html: "<p>Use cards to group related content. Drop any widget inside.</p>" } },
+      ],
+    }),
+  );
 
-  const F = "Forms & Popups";
-  add("gpb-f-form", "Lead form", F, I.form, W.form());
-  add("gpb-f-popup", "Popup + button", F, I.popup, popupWithForm());
+  // Every other widget, in its own category.
+  for (const def of WIDGETS) {
+    if (def.type === "section" || def.type === "container") continue;
+    bm.add(componentType(def.type), widgetBlock(def.type, def.category === "Layout" ? L : def.category));
+  }
+  // A ready-made button pair.
+  bm.add(
+    "pf-buttons",
+    widgetBlock("container", "Basic", {
+      label: "Button group",
+      media: icon('<rect x="2" y="9" width="9" height="6" rx="3"/><rect x="13" y="9" width="9" height="6" rx="3"/>'),
+      settings: { direction: { desktop: "row" }, gap: { desktop: 12 }, wrap: true },
+      components: [
+        { type: componentType("button"), [SETTINGS_PROP]: { text: "Get started", link: { url: "#" }, size: "lg", variant: "solid" } },
+        { type: componentType("button"), [SETTINGS_PROP]: { text: "Learn more", link: { url: "#" }, size: "lg", variant: "outline" } },
+      ],
+    }),
+  );
 
-  const P = "Sections";
-  const sections: [string, string, string, string][] = [
-    ["navbar", "Header / Nav", I.nav, S.navbar],
-    ["hero-split", "Hero (split)", I.hero, S.heroSplit],
-    ["hero-center", "Hero (centered)", I.hero, S.heroCentered],
-    ["logos", "Logo strip", I.marquee, S.logos],
-    ["features", "Features grid", I.feature, S.features],
-    ["stats", "Stats counters", I.counter, S.stats],
-    ["tabs", "Tabs + image", I.tabs, S.tabsSection],
-    ["testimonials", "Testimonials", I.testimonial, S.testimonials],
-    ["pricing", "Pricing", I.pricing, S.pricing],
-    ["faq", "FAQ", I.faq, S.faq],
-    ["countdown", "Countdown", I.countdown, S.countdownSection],
-    ["before-after", "Before / After", I.beforeAfter, S.beforeAfterSection],
-    ["video", "Video", I.video, S.videoSection],
-    ["lead", "Lead capture", I.form, S.leadForm],
-    ["cta", "Call to action", I.cta, S.cta],
-    ["footer", "Footer", I.footer, S.footer],
-  ];
-  for (const [id, label, media, html] of sections) add(`gpb-s-${id}`, label, P, media, html);
+  for (const [id, sec] of Object.entries(SECTIONS)) {
+    bm.add(`pf-s-${id}`, { label: sec.label, category: "Sections", media: tile(sec.icon), content: toEditorHtml(sec.nodes) });
+  }
 }
 
 export { GLOBAL_NAMES };

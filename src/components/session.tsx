@@ -4,8 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 export interface SessionUser {
   locationId: string;
+  companyId?: string;
   userName?: string;
   email?: string;
+  userType?: "agency" | "location";
 }
 
 type ApiFn = <T = any>(path: string, init?: Omit<RequestInit, "body"> & { body?: unknown }) => Promise<T>; // eslint-disable-line @typescript-eslint/no-explicit-any

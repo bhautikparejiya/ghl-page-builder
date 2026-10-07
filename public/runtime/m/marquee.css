@@ -1,0 +1,7 @@
+/* ── Logo marquee ── */
+.gpb-marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.gpb-marquee-track { display: flex; gap: 56px; width: max-content; align-items: center; }
+.gpb-marquee.is-running .gpb-marquee-track { animation: gpb-marquee var(--gpb-speed, 30s) linear infinite; }
+.gpb-marquee:hover .gpb-marquee-track { animation-play-state: paused; }
+.gpb-marquee-item { font-family: var(--gpb-font-heading); font-weight: 800; font-size: 1.4rem; opacity: .55; white-space: nowrap; }
+.gpb-marquee img { height: 40px; width: auto; opacity: .7; }

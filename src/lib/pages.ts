@@ -7,15 +7,33 @@ export interface FormConfig {
   workflowId?: string;
   successMessage?: string;
   redirectUrl?: string;
+  /** Create an opportunity for the contact in this pipeline/stage. */
+  pipelineId?: string;
+  stageId?: string;
+  /** Supports {{name}}, {{email}} and {{page}}. */
+  opportunityName?: string;
+  opportunityValue?: number;
+}
+
+export interface PageSettings {
+  title: string;
+  description: string;
+  /** Social share image (og:image). */
+  ogImage?: string;
+  /** Ask search engines not to index the hosted page. */
+  noindex?: boolean;
+  /** "inline" renders embeds without Shadow DOM, so the funnel's fonts and SEO tools see the content as regular page HTML. */
+  embedMode?: "shadow" | "inline";
 }
 
 export interface PageDoc {
   id: string;
   locationId: string;
+  companyId?: string;
   name: string;
   createdAt: number;
   updatedAt: number;
-  settings: { title: string; description: string };
+  settings: PageSettings;
   theme: Theme;
   draft: { projectData: unknown | null; html: string; css: string };
   published?: {
@@ -25,6 +43,12 @@ export interface PageDoc {
     forms: Record<string, FormConfig>;
     publishedAt: number;
     version: number;
+    /** Google fonts used by widgets (in addition to the brand kit fonts). */
+    fonts?: string[];
+    /** Runtime modules the page needs (interactive widgets). */
+    modules?: string[];
+    /** Structured data (JSON-LD) for the hosted page, e.g. FAQ markup. */
+    jsonLd?: string;
   };
 }
 
@@ -39,6 +63,7 @@ export interface Submission {
 interface PageRow {
   id: string;
   location_id: string;
+  company_id: string | null;
   name: string;
   created_at: unknown;
   updated_at: unknown;
@@ -52,6 +77,7 @@ function fromRow(r: PageRow): PageDoc {
   return {
     id: r.id,
     locationId: r.location_id,
+    companyId: r.company_id ?? undefined,
     name: r.name,
     createdAt: num(r.created_at),
     updatedAt: num(r.updated_at),
@@ -99,32 +125,34 @@ export async function getPage(id: string): Promise<PageDoc | null> {
 
 export async function createPage(
   locationId: string,
-  init: { name: string; html?: string; css?: string; theme?: Theme; projectData?: unknown },
+  init: { name: string; html?: string; css?: string; theme?: Theme; projectData?: unknown; companyId?: string },
 ): Promise<PageDoc> {
   const now = Date.now();
   const page: PageDoc = {
     id: newId(),
     locationId,
+    companyId: init.companyId,
     name: init.name || "Untitled page",
     createdAt: now,
     updatedAt: now,
     settings: { title: init.name || "", description: "" },
-    theme: init.theme ?? { ...DEFAULT_THEME },
+    theme: init.theme ?? { ...DEFAULT_THEME, useKit: true },
     draft: { projectData: init.projectData ?? null, html: init.html ?? "", css: init.css ?? "" },
   };
   await query(
-    `INSERT INTO pages (id, location_id, name, created_at, updated_at, settings, theme, draft, published)
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, NULL)`,
-    [page.id, locationId, page.name, now, now, json(page.settings), json(page.theme), json(page.draft)],
+    `INSERT INTO pages (id, location_id, company_id, name, created_at, updated_at, settings, theme, draft, published)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, NULL)`,
+    [page.id, locationId, init.companyId ?? null, page.name, now, now, json(page.settings), json(page.theme), json(page.draft)],
   );
   return page;
 }
 
 export async function savePage(page: PageDoc) {
   await query(
-    `UPDATE pages SET name = $2, updated_at = $3, settings = $4::jsonb, theme = $5::jsonb, draft = $6::jsonb, published = $7::jsonb
+    `UPDATE pages SET name = $2, updated_at = $3, settings = $4::jsonb, theme = $5::jsonb, draft = $6::jsonb, published = $7::jsonb,
+            company_id = COALESCE($8, company_id)
       WHERE id = $1`,
-    [page.id, page.name, page.updatedAt, json(page.settings), json(page.theme), json(page.draft), json(page.published)],
+    [page.id, page.name, page.updatedAt, json(page.settings), json(page.theme), json(page.draft), json(page.published), page.companyId ?? null],
   );
 }
 

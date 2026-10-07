@@ -1,3 +1,7 @@
+/**
+ * Per-page theme. New pages follow the sub-account's brand kit (useKit: true); pages created before
+ * brand kits keep these values as their own theme.
+ */
 export interface Theme {
   primary: string;
   secondary: string;
@@ -6,6 +10,7 @@ export interface Theme {
   headingFont: string;
   bodyFont: string;
   radius: number;
+  useKit?: boolean;
 }
 
 export const DEFAULT_THEME: Theme = {
@@ -18,6 +23,7 @@ export const DEFAULT_THEME: Theme = {
   radius: 10,
 };
 
+/** Google fonts offered in the brand kit and typography controls. */
 export const FONTS = [
   "Inter",
   "Poppins",
@@ -28,16 +34,43 @@ export const FONTS = [
   "DM Sans",
   "Raleway",
   "Nunito",
+  "Manrope",
+  "Plus Jakarta Sans",
+  "Outfit",
+  "Sora",
+  "Urbanist",
+  "Work Sans",
+  "Rubik",
+  "Figtree",
+  "Space Grotesk",
+  "Lexend",
+  "Archivo",
+  "Barlow",
+  "Source Sans 3",
   "Playfair Display",
   "Merriweather",
+  "Lora",
+  "Libre Baskerville",
+  "Cormorant Garamond",
+  "DM Serif Display",
+  "Fraunces",
   "Oswald",
+  "Bebas Neue",
+  "Anton",
+  "Caveat",
+  "Pacifico",
 ];
 
-export function fontUrl(theme: Theme): string {
-  const fams = Array.from(new Set([theme.headingFont, theme.bodyFont]))
-    .map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:wght@400;500;600;700;800`)
+/** Google Fonts stylesheet URL for a set of families. */
+export function fontUrlFor(families: string[]): string {
+  const fams = Array.from(new Set(families.filter((f) => /^[\w\s-]{1,60}$/.test(f))))
+    .map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400`)
     .join("&");
-  return `https://fonts.googleapis.com/css2?${fams}&display=swap`;
+  return fams ? `https://fonts.googleapis.com/css2?${fams}&display=swap` : "";
+}
+
+export function fontUrl(theme: Theme): string {
+  return fontUrlFor([theme.headingFont, theme.bodyFont]);
 }
 
 /** CSS custom properties consumed by runtime.css and the widget blocks. */

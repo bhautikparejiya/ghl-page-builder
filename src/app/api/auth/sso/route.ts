@@ -25,6 +25,7 @@ export const POST = handle(async (req: Request) => {
     userName: ctx.userName,
     email: ctx.email,
     role: ctx.role,
+    userType: ctx.type,
   };
   return NextResponse.json({ token: createSessionToken(user), user });
 });

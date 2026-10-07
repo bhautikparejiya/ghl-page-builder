@@ -11,10 +11,22 @@ export const GET = handle(async (req: Request, { params }: Ctx) => {
 
 /** Save draft / rename / settings / theme. */
 export const PUT = handle(async (req: Request, { params }: Ctx) => {
-  const page = await requireOwnedPage(requireSession(req), (await params).id);
+  const s = requireSession(req);
+  const page = await requireOwnedPage(s, (await params).id);
+  page.companyId ??= s.companyId;
   const body = (await req.json()) as Partial<Pick<PageDoc, "name" | "settings" | "theme" | "draft">>;
   if (typeof body.name === "string") page.name = body.name.slice(0, 120) || page.name;
-  if (body.settings) page.settings = { ...page.settings, ...body.settings };
+  if (body.settings) {
+    const st = body.settings;
+    page.settings = {
+      ...page.settings,
+      ...(typeof st.title === "string" ? { title: st.title.slice(0, 200) } : {}),
+      ...(typeof st.description === "string" ? { description: st.description.slice(0, 500) } : {}),
+      ...(typeof st.ogImage === "string" ? { ogImage: st.ogImage.slice(0, 1000) } : {}),
+      ...(typeof st.noindex === "boolean" ? { noindex: st.noindex } : {}),
+      ...(st.embedMode === "inline" || st.embedMode === "shadow" ? { embedMode: st.embedMode } : {}),
+    };
+  }
   if (body.theme) page.theme = { ...page.theme, ...body.theme };
   if (body.draft) page.draft = body.draft;
   page.updatedAt = Date.now();
