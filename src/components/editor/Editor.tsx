@@ -1,6 +1,6 @@
 "use client";
 
-import grapesjs, { Editor as GEditor } from "grapesjs";
+import grapesjs, { Component, Editor as GEditor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 import customCodePlugin from "grapesjs-custom-code";
 import formsPlugin from "grapesjs-plugin-forms";
@@ -11,6 +11,8 @@ import { DEFAULT_THEME, FONTS, fontUrl, Theme, themeCss } from "@/lib/theme";
 import { useSession } from "../session";
 import { EmbedInstructions, Modal, timeAgo } from "../ui";
 import gpbPlugin from "./gpbPlugin";
+import WidgetPanel from "./panel/WidgetPanel";
+import widgetComponents, { collectWidgetCss, isWidget } from "./widgetComponents";
 
 type SaveState = "saved" | "saving" | "dirty" | "error";
 type Device = "desktop" | "tablet" | "mobile";
@@ -61,6 +63,7 @@ export default function PageEditor({ pageId }: { pageId: string }) {
   const editorRef = useRef<GEditor | null>(null);
   const workflowsRef = useRef<{ id: string; name: string }[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const themeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readyAt = useRef(0);
 
   const [page, setPage] = useState<PageDoc | null>(null);
@@ -70,7 +73,8 @@ export default function PageEditor({ pageId }: { pageId: string }) {
   const [device, setDevice] = useState<Device>("desktop");
   const [leftTab, setLeftTab] = useState<"blocks" | "layers">("blocks");
   const [rightTab, setRightTab] = useState<"style" | "settings">("style");
-  const [modal, setModal] = useState<null | "theme" | "settings" | "embed">(null);
+  const [modal, setModal] = useState<null | "theme" | "settings" | "embed" | "history">(null);
+  const [selectedWidget, setSelectedWidget] = useState<Component | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<number | null>(null);
   const [preview, setPreview] = useState(false);
@@ -84,7 +88,7 @@ export default function PageEditor({ pageId }: { pageId: string }) {
 
   const buildDraft = useCallback(() => {
     const ed = editorRef.current!;
-    return { projectData: ed.getProjectData(), html: stripBody(ed.getHtml()), css: ed.getCss() ?? "" };
+    return { projectData: ed.getProjectData(), html: stripBody(ed.getHtml()), css: (ed.getCss() ?? "") + collectWidgetCss(ed) };
   }, []);
 
   const saveNow = useCallback(async () => {
@@ -180,6 +184,7 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         },
         plugins: [
           (ed: GEditor) => formsPlugin(ed, { blocks: [] }),
+          widgetComponents,
           (ed: GEditor) => gpbPlugin(ed, { getWorkflows: () => workflowsRef.current }),
           (ed: GEditor) => customCodePlugin(ed, { blockCustomCode: { label: "Custom HTML", category: "Basic" } }),
         ],
@@ -195,6 +200,11 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         readyAt.current = Date.now();
       });
       editor.on("update", scheduleSave);
+      // Schema widgets get the widget settings panel instead of the generic style/trait panels.
+      editor.on("component:toggled", () => {
+        const sel = editor!.getSelected();
+        setSelectedWidget(sel && isWidget(sel) ? sel : null);
+      });
       editor.on("stop:preview", () => setPreview(false));
     })();
 
@@ -239,15 +249,21 @@ export default function PageEditor({ pageId }: { pageId: string }) {
     }, 50);
   };
 
-  const updateTheme = async (patch: Partial<Theme>) => {
+  const updateTheme = (patch: Partial<Theme>) => {
     const next = { ...theme, ...patch };
     setTheme(next);
     if (editorRef.current) applyThemeToCanvas(editorRef.current, next);
-    try {
-      await api(`/api/pages/${pageId}`, { method: "PUT", body: { theme: next } });
-    } catch {
-      setSave("error");
-    }
+    // Color pickers and sliders fire continuously; save once they settle.
+    setSave("dirty");
+    if (themeTimer.current) clearTimeout(themeTimer.current);
+    themeTimer.current = setTimeout(async () => {
+      try {
+        await api(`/api/pages/${pageId}`, { method: "PUT", body: { theme: next } });
+        setSave("saved");
+      } catch {
+        setSave("error");
+      }
+    }, 600);
   };
 
   const publish = async () => {
@@ -352,6 +368,9 @@ export default function PageEditor({ pageId }: { pageId: string }) {
           <button className="btn btn-sm" onClick={() => setModal("settings")}>
             Settings
           </button>
+          <button className="btn btn-sm" onClick={() => setModal("history")}>
+            History
+          </button>
           <button className="btn btn-sm" onClick={() => setModal("embed")}>
             Embed
           </button>
@@ -387,7 +406,19 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         </main>
 
         <aside className="ed-right">
-          <div className="tabs">
+          {selectedWidget && editorRef.current && (
+            <WidgetPanel
+              key={(selectedWidget as unknown as { cid: string }).cid}
+              editor={editorRef.current}
+              component={selectedWidget}
+              ctx={{
+                device,
+                setDevice: switchDevice,
+                themeColors: { primary: theme.primary, secondary: theme.secondary, text: theme.text, background: theme.background },
+              }}
+            />
+          )}
+          <div className="tabs" hidden={!!selectedWidget}>
             <button className={rightTab === "style" ? "active" : ""} onClick={() => setRightTab("style")}>
               Style
             </button>
@@ -395,13 +426,13 @@ export default function PageEditor({ pageId }: { pageId: string }) {
               Settings
             </button>
           </div>
-          <div className="panel-scroll" hidden={rightTab !== "style"}>
+          <div className="panel-scroll" hidden={!!selectedWidget || rightTab !== "style"}>
             <p className="panel-hint">
               Select an element, choose a device at the top, then style it. Styles apply per device.
             </p>
             <div id="gpb-styles" />
           </div>
-          <div className="panel-scroll" hidden={rightTab !== "settings"}>
+          <div className="panel-scroll" hidden={!!selectedWidget || rightTab !== "settings"}>
             <p className="panel-hint">Widget options, links, form → CRM settings, animations, hover effects and visibility.</p>
             <div id="gpb-traits" />
           </div>
@@ -486,11 +517,78 @@ export default function PageEditor({ pageId }: { pageId: string }) {
         </Modal>
       )}
 
+      {modal === "history" && (
+        <Modal title="Revision history" onClose={() => setModal(null)} width={520}>
+          <RevisionHistory
+            pageId={pageId}
+            beforeRestore={async () => {
+              if (save === "dirty" || save === "saving") await saveNow();
+            }}
+          />
+        </Modal>
+      )}
+
       {modal === "embed" && (
         <Modal title="Add this page to HighLevel" onClose={() => setModal(null)} width={640}>
           <EmbedInstructions pageId={pageId} published={!!publishedAt} />
         </Modal>
       )}
     </div>
+  );
+}
+
+type Revision = { id: number; at: number; kind: "publish" | "autosave" | "restore"; version: number | null };
+
+const REVISION_LABEL: Record<Revision["kind"], (r: Revision) => string> = {
+  publish: (r) => `Published (v${r.version})`,
+  autosave: () => "Draft snapshot",
+  restore: () => "Before a restore",
+};
+
+function RevisionHistory({ pageId, beforeRestore }: { pageId: string; beforeRestore: () => Promise<void> }) {
+  const { api } = useSession();
+  const [revisions, setRevisions] = useState<Revision[] | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState<number | null>(null);
+
+  useEffect(() => {
+    api<{ revisions: Revision[] }>(`/api/pages/${pageId}/revisions`)
+      .then((r) => setRevisions(r.revisions))
+      .catch((e) => setError((e as Error).message));
+  }, [api, pageId]);
+
+  const restore = async (r: Revision) => {
+    if (!confirm(`Restore "${REVISION_LABEL[r.kind](r)}" from ${new Date(r.at).toLocaleString()}? Your current draft is kept in history.`)) return;
+    setBusy(r.id);
+    try {
+      await beforeRestore();
+      await api(`/api/pages/${pageId}/revisions`, { method: "POST", body: { revisionId: r.id } });
+      window.location.reload();
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(null);
+    }
+  };
+
+  if (error) return <p className="error">{error}</p>;
+  if (!revisions) return <p className="muted">Loading…</p>;
+  if (!revisions.length) return <p className="muted">No revisions yet. One is saved every time you publish, and a draft snapshot every 30 minutes while you edit.</p>;
+  return (
+    <>
+      <p className="muted">Restoring replaces the draft in the editor. The live page doesn&apos;t change until you publish.</p>
+      <ul className="rev-list">
+        {revisions.map((r) => (
+          <li key={r.id}>
+            <div>
+              <div className="rev-kind">{REVISION_LABEL[r.kind](r)}</div>
+              <div className="muted">{new Date(r.at).toLocaleString()}</div>
+            </div>
+            <button className="btn btn-sm" disabled={busy !== null} onClick={() => restore(r)}>
+              {busy === r.id ? "Restoring…" : "Restore"}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

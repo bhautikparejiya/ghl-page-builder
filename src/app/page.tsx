@@ -6,7 +6,7 @@ export default function Home() {
       <img className="logo-mark big" src="/logo.svg" alt="PageForge" />
       <h1>PageForge for HighLevel</h1>
       <p className="muted">
-        Elementor-style visual builder with tabs, sliders, countdowns, before/after, pricing tables, popups, scroll
+        Drag-and-drop widget builder with tabs, sliders, countdowns, before/after, pricing tables, popups, scroll
         animations and CRM-connected lead forms. Publish into any HighLevel funnel or website.
       </p>
       <p>

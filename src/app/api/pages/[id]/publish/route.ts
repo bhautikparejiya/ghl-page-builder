@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { handle, requireOwnedPage, requireSession } from "@/lib/http";
-import { FormConfig, PageDoc, savePage } from "@/lib/pages";
+import { addRevision, FormConfig, PageDoc, savePage } from "@/lib/pages";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -36,5 +36,6 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
     version: (page.published?.version ?? 0) + 1,
   };
   await savePage(page);
+  await addRevision(page, "publish", page.published.version);
   return NextResponse.json({ ok: true, publishedAt: now, version: page.published.version });
 });

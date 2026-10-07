@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PageForge for HighLevel",
-  description: "Elementor-style visual page builder with advanced widgets for HighLevel funnels and websites.",
+  description: "Drag-and-drop widget page builder for HighLevel funnels and websites, with CRM-connected forms.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

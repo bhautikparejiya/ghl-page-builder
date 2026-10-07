@@ -44,6 +44,16 @@ CREATE TABLE IF NOT EXISTS submissions (
   error      TEXT
 );
 CREATE INDEX IF NOT EXISTS submissions_page_idx ON submissions (page_id, at DESC);
+
+CREATE TABLE IF NOT EXISTS page_revisions (
+  id         BIGSERIAL PRIMARY KEY,
+  page_id    TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  at         BIGINT NOT NULL,
+  kind       TEXT NOT NULL,                 -- 'publish' | 'autosave' | 'restore'
+  version    INT,                           -- published version, for kind = 'publish'
+  doc        JSONB NOT NULL                 -- { draft, theme }
+);
+CREATE INDEX IF NOT EXISTS page_revisions_page_idx ON page_revisions (page_id, at DESC);
 `;
 
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -62,7 +72,10 @@ async function createPglite(): Promise<QueryFn> {
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const path = await import("node:path");
-  const db = new PGlite(path.join(process.cwd(), ".data", "pg"));
+  const dir = path.join(process.cwd(), ".data", "pg");
+  // PGlite creates the data dir but not its parent (fresh clones have no .data/).
+  await (await import("node:fs/promises")).mkdir(path.dirname(dir), { recursive: true });
+  const db = new PGlite(dir);
   await db.exec(SCHEMA);
   return async (text, params = []) => (await db.query<Row>(text, params as unknown[])).rows;
 }

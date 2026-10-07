@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { handle, requireOwnedPage, requireSession } from "@/lib/http";
-import { deletePage, PageDoc, savePage } from "@/lib/pages";
+import { addRevision, AUTOSAVE_SNAPSHOT_MS, deletePage, lastRevisionAt, PageDoc, savePage } from "@/lib/pages";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,6 +19,11 @@ export const PUT = handle(async (req: Request, { params }: Ctx) => {
   if (body.draft) page.draft = body.draft;
   page.updatedAt = Date.now();
   await savePage(page);
+  if (body.draft) {
+    // Periodic draft snapshot so unpublished work can be recovered too.
+    const last = await lastRevisionAt(page.id, "autosave");
+    if (!last || page.updatedAt - last > AUTOSAVE_SNAPSHOT_MS) await addRevision(page, "autosave");
+  }
   return NextResponse.json({ ok: true, updatedAt: page.updatedAt });
 });
 

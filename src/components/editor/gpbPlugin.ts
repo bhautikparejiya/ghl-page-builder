@@ -1,5 +1,6 @@
 import type { Component, Editor } from "grapesjs";
 import { popupWithForm, S, W } from "@/lib/sections";
+import { isWidget, widgetBlock } from "./widgetComponents";
 
 export interface GpbPluginOptions {
   getWorkflows: () => { id: string; name: string }[];
@@ -10,7 +11,7 @@ type TraitDef = Record<string, any>;
 
 const opt = (id: string, label: string) => ({ id, label });
 
-/** Elementor-style "Advanced" settings available on every element. */
+/** "Advanced" settings available on every element. */
 const GLOBAL_TRAITS: TraitDef[] = [
   {
     type: "select",
@@ -179,7 +180,8 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
 
   /* ── Add "Advanced" traits to every selected element ── */
   editor.on("component:selected", (c: Component) => {
-    if (!c || c.get("type") === "wrapper" || c.get("type") === "textnode") return;
+    // Schema widgets have their own Advanced tab.
+    if (!c || c.get("type") === "wrapper" || c.get("type") === "textnode" || isWidget(c)) return;
     let changed = false;
     if (c.is("gpb-form")) {
       const t = c.getTrait("data-workflow");
@@ -216,9 +218,9 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
   add("gpb-card", "Card", L, I.card, W.card);
 
   const B = "Basic";
-  add("gpb-heading", "Heading", B, I.heading, W.heading);
+  bm.add("pf-heading", widgetBlock("heading", B));
   add("gpb-text", "Text", B, I.text, W.text);
-  add("gpb-button", "Button", B, I.button, W.button);
+  bm.add("pf-button", widgetBlock("button", B));
   add("gpb-buttons", "Button group", B, I.button, W.buttonGroup);
   add("gpb-image", "Image", B, I.image, { type: "image", src: "https://picsum.photos/seed/gpb-new/1000/650", attributes: { class: "gpb-img-round", alt: "" }, activate: true });
   add("gpb-video", "Video", B, I.video, W.video);
@@ -229,7 +231,7 @@ export default function gpbPlugin(editor: Editor, opts: GpbPluginOptions) {
 
   const X = "Widgets";
   add("gpb-w-tabs", "Tabs", X, I.tabs, W.tabs);
-  add("gpb-w-accordion", "Accordion", X, I.accordion, W.accordion());
+  bm.add("pf-accordion", widgetBlock("accordion", X));
   add("gpb-w-counter", "Counter", X, I.counter, W.counter());
   add("gpb-w-countdown", "Countdown", X, I.countdown, W.countdown());
   add("gpb-w-ba", "Before / After", X, I.beforeAfter, W.beforeAfter);

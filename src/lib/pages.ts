@@ -132,6 +132,56 @@ export async function deletePage(page: PageDoc) {
   await query("DELETE FROM pages WHERE id = $1", [page.id]); // submissions cascade
 }
 
+export type RevisionKind = "publish" | "autosave" | "restore";
+
+export interface RevisionSummary {
+  id: number;
+  at: number;
+  kind: RevisionKind;
+  version: number | null;
+}
+
+/** Revisions kept per page; older ones are pruned on insert. */
+const MAX_REVISIONS = 50;
+/** Minimum gap between automatic draft snapshots. */
+export const AUTOSAVE_SNAPSHOT_MS = 30 * 60 * 1000;
+
+export async function addRevision(page: PageDoc, kind: RevisionKind, version?: number) {
+  await query(
+    "INSERT INTO page_revisions (page_id, at, kind, version, doc) VALUES ($1, $2, $3, $4, $5::jsonb)",
+    [page.id, Date.now(), kind, version ?? null, json({ draft: page.draft, theme: page.theme })],
+  );
+  await query(
+    `DELETE FROM page_revisions WHERE page_id = $1 AND id NOT IN
+       (SELECT id FROM page_revisions WHERE page_id = $1 ORDER BY at DESC LIMIT ${MAX_REVISIONS})`,
+    [page.id],
+  );
+}
+
+export async function lastRevisionAt(pageId: string, kind: RevisionKind): Promise<number | null> {
+  const rows = await query<{ at: unknown }>(
+    "SELECT at FROM page_revisions WHERE page_id = $1 AND kind = $2 ORDER BY at DESC LIMIT 1",
+    [pageId, kind],
+  );
+  return rows[0] ? num(rows[0].at) : null;
+}
+
+export async function listRevisions(pageId: string): Promise<RevisionSummary[]> {
+  const rows = await query<{ id: unknown; at: unknown; kind: RevisionKind; version: unknown }>(
+    "SELECT id, at, kind, version FROM page_revisions WHERE page_id = $1 ORDER BY at DESC",
+    [pageId],
+  );
+  return rows.map((r) => ({ id: num(r.id), at: num(r.at), kind: r.kind, version: r.version == null ? null : num(r.version) }));
+}
+
+export async function getRevisionDoc(pageId: string, id: number) {
+  const rows = await query<{ doc: { draft: PageDoc["draft"]; theme: Theme } }>(
+    "SELECT doc FROM page_revisions WHERE page_id = $1 AND id = $2",
+    [pageId, id],
+  );
+  return rows[0]?.doc ?? null;
+}
+
 export async function listSubmissions(pageId: string, limit = 200): Promise<Submission[]> {
   const rows = await query<{ at: unknown; form_id: string; fields: Record<string, string>; contact_id: string | null; error: string | null }>(
     "SELECT at, form_id, fields, contact_id, error FROM submissions WHERE page_id = $1 ORDER BY at DESC LIMIT $2",

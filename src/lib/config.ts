@@ -21,6 +21,14 @@ export const config = {
   get appUrl() {
     return env("APP_URL", "http://localhost:3000").replace(/\/$/, "");
   },
+  /**
+   * Optional separate origin for hosted pages (/p/:id), e.g. https://pages.example.com.
+   * Customer pages can contain custom HTML/JS; serving them away from the editor's origin keeps that code
+   * off the app's domain. Unset = hosted pages are served from APP_URL.
+   */
+  get pagesUrl() {
+    return env("PAGES_URL").replace(/\/$/, "");
+  },
   get clientId() {
     return env("GHL_CLIENT_ID");
   },

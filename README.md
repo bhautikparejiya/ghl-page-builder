@@ -1,6 +1,6 @@
 # PageForge for HighLevel
 
-A HighLevel Marketplace app that adds an Elementor-style visual page builder to HighLevel.
+A HighLevel Marketplace app that adds a drag-and-drop widget page builder to HighLevel.
 Users design pages inside HighLevel (as a Custom Page in the left menu), then publish them into any HighLevel
 funnel or website step with a one-time snippet. Edits after that go live automatically.
 
@@ -19,6 +19,7 @@ funnel or website step with a one-time snippet. Edits after that go live automat
 - **HighLevel Media Library:** upload images and pick from existing ones.
 - **Publishing:** a Shadow DOM embed, so styles never clash with the funnel, plus a standalone hosted URL (`/p/:id`).
 - **Leads log:** the last 200 submissions per page, with CRM sync status.
+- **Revision history:** a snapshot on every publish plus a draft snapshot every 30 minutes of editing (last 50 kept). Restore from **History** in the editor.
 
 ## How it works
 
@@ -40,6 +41,8 @@ HighLevel sub-account ──(left menu: Custom Page iframe)──► /app  (Next
 | `src/app/api/pages/**` | Page CRUD, publish, submissions (scoped to the session's sub-account) |
 | `src/app/api/public/**` | Public, CORS-enabled endpoints used by published pages |
 | `src/components/editor/` | Editor UI and GrapesJS plugin (widgets, settings, blocks) |
+| `src/lib/widgets/` | Schema widgets: settings schema + pure HTML/CSS renderers, shared by editor and server |
+| `src/components/editor/panel/` | Content / Design / Advanced settings panel generated from widget schemas |
 | `src/lib/sections.ts` | Widget and section markup (shared by the blocks and templates) |
 | `public/runtime.js` / `runtime.css` | Widget behaviour and styles on live pages and in the editor canvas |
 | `public/loader.js` | The embed script customers paste into HighLevel |
@@ -92,6 +95,7 @@ npm run dev
    | `GHL_CLIENT_ID` / `GHL_CLIENT_SECRET` | from step 3 below |
    | `GHL_SSO_KEY` | the Shared Secret from step 3 below |
    | `GHL_WEBHOOK_PUBLIC_KEY` | optional: the public key from HighLevel's webhook docs (enables signature checks) |
+   | `PAGES_URL` | optional but recommended: a second domain (e.g. `https://pages.your-domain.com`) added to the same Vercel project. Hosted pages (`/p/:id`) are served only there, so customer custom code never runs on the editor's domain |
    | `ALLOW_DEV_LOGIN` | **leave unset in production** |
 
 5. Redeploy (Deployments → ⋯ → Redeploy) so the variables take effect.
@@ -163,3 +167,16 @@ npm run dev
 - Widget behaviour lives in `public/runtime.js`, which is cached for 5 minutes at the browser and up to 1 hour at the CDN. After changing it,
   redeploy and allow for cache time.
 - Image uploads go through Vercel, which caps request bodies at about 4.5 MB.
+
+## Adding a widget
+
+Schema widgets (`src/lib/widgets/`) are the preferred way to build widgets. Each one is a `defineWidget({...})` with:
+
+- `defaults()`: initial settings
+- `content` / `design`: control groups that generate the settings panel (text, select, buttons, toggle, number,
+  color with theme binding, typography, spacing, link, code, repeater). Set `responsive: true` for per-device values.
+- `render(settings)`: inner HTML (escape user text with `esc` / `textToHtml`)
+- `css(settings, css)`: scoped styles; `&` is the widget wrapper, and media queries are generated for tablet/mobile values
+
+Register it in `src/lib/widgets/index.ts` and add a block in `gpbPlugin.ts` with `widgetBlock("<type>", category)`.
+The Advanced tab (spacing, motion, visibility, popup trigger, CSS id/classes, custom CSS) is added to every widget automatically.
