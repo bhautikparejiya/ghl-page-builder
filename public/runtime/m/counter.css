@@ -1,0 +1,6 @@
+/* ── Counter ── */
+.gpb-counter { text-align: center; }
+.gpb-counter-value { font-family: var(--gpb-font-heading); font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 800; color: var(--gpb-primary); line-height: 1.1; }
+.gpb-counter-label { color: var(--gpb-muted); margin-top: 6px; }
+.gpb-section--dark .gpb-counter-label, .gpb-section--brand .gpb-counter-label { color: inherit; opacity: .8; }
+.gpb-section--brand .gpb-counter-value { color: #fff; }

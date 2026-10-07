@@ -1,0 +1,3 @@
+/* ── Typing headline ── */
+.gpb-typing-text { color: var(--gpb-primary); }
+.gpb-typing-text::after { content: "|"; margin-left: 2px; animation: gpb-blink 1s steps(1) infinite; color: var(--gpb-primary); font-weight: 400; }

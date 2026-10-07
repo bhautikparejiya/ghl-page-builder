@@ -18,6 +18,7 @@ interface TemplateRow {
   name: string;
   description: string;
   thumbnail: string;
+  category: string;
 }
 interface Submission {
   at: number;
@@ -57,10 +58,10 @@ export default function Dashboard() {
       .catch(() => setConnected(false));
   }, [api, load]);
 
-  const create = async (templateId: string, name: string) => {
-    setBusy(templateId);
+  const create = async (templateId: string, name: string, libraryId?: string) => {
+    setBusy(libraryId ?? templateId);
     try {
-      const { page } = await api<{ page: { id: string } }>("/api/pages", { method: "POST", body: { templateId, name } });
+      const { page } = await api<{ page: { id: string } }>("/api/pages", { method: "POST", body: libraryId ? { libraryId, name } : { templateId, name } });
       router.push(`/app/editor/${page.id}`);
     } catch (e) {
       alert((e as Error).message);
@@ -158,23 +159,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {showNew && (
-        <Modal title="Create a new page" onClose={() => setShowNew(false)} width={900}>
-          <div className="tpl-grid">
-            {templates.map((t) => (
-              <button key={t.id} className="tpl" disabled={!!busy} onClick={() => create(t.id, t.id === "blank" ? "Untitled page" : t.name)}>
-                <div className="tpl-thumb" style={{ background: t.thumbnail }}>
-                  {busy === t.id ? "Creating…" : t.name}
-                </div>
-                <div className="tpl-body">
-                  <b>{t.name}</b>
-                  <p className="muted">{t.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
+      {showNew && <TemplatePicker templates={templates} busy={busy} onCreate={create} onClose={() => setShowNew(false)} />}
 
       {embedFor && (
         <Modal title={`Embed "${embedFor.name}"`} onClose={() => setEmbedFor(null)} width={640}>
@@ -218,4 +203,125 @@ export default function Dashboard() {
       )}
     </div>
   );
+}
+
+interface SavedTemplate {
+  id: string;
+  name: string;
+  kind: "section" | "page";
+  category: string;
+  thumbnail?: string;
+  ownerType: "location" | "company";
+}
+
+/** Template picker with live previews rendered in the sub-account's brand kit. */
+function TemplatePicker({ templates, busy, onCreate, onClose }: {
+  templates: TemplateRow[];
+  busy: string;
+  onCreate: (templateId: string, name: string, libraryId?: string) => void;
+  onClose: () => void;
+}) {
+  const { api } = useSession();
+  const [tab, setTab] = useState<"builtin" | "saved">("builtin");
+  const [cat, setCat] = useState("All");
+  const [docs, setDocs] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<TemplateRow | null>(null);
+  const [saved, setSaved] = useState<SavedTemplate[] | null>(null);
+
+  useEffect(() => {
+    templates.forEach((t) => {
+      api<{ html: string; css: string; fontUrl: string }>(`/api/templates/preview?id=${encodeURIComponent(t.id)}`)
+        .then((r) => setDocs((d) => ({ ...d, [t.id]: previewDoc(r) })))
+        .catch(() => {});
+    });
+    api<{ items: SavedTemplate[] }>("/api/library")
+      .then((r) => setSaved(r.items.filter((i) => i.kind === "page")))
+      .catch(() => setSaved([]));
+  }, [api, templates]);
+
+  const cats = ["All", ...Array.from(new Set(templates.map((t) => t.category)))];
+  const shown = templates.filter((t) => cat === "All" || t.category === cat);
+
+  return (
+    <Modal title="Create a new page" onClose={onClose} width={980}>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        <button className={tab === "builtin" ? "active" : ""} onClick={() => setTab("builtin")}>
+          Templates
+        </button>
+        <button className={tab === "saved" ? "active" : ""} onClick={() => setTab("saved")}>
+          My templates{saved ? ` (${saved.length})` : ""}
+        </button>
+      </div>
+      {tab === "builtin" ? (
+        <>
+          <div className="tpl-filters">
+            {cats.map((c) => (
+              <button key={c} className={cat === c ? "active" : ""} onClick={() => setCat(c)}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="tpl-grid">
+            {shown.map((t) => (
+              <div key={t.id} className="tpl">
+                <button className="tpl-open" disabled={!!busy} onClick={() => setPreview(t)} title="Preview">
+                  {docs[t.id] && t.id !== "blank" ? (
+                    <div className="tpl-live">
+                      <iframe srcDoc={docs[t.id]} title={t.name} tabIndex={-1} loading="lazy" />
+                    </div>
+                  ) : (
+                    <div className="tpl-thumb" style={{ background: t.thumbnail }}>
+                      {t.name}
+                    </div>
+                  )}
+                </button>
+                <div className="tpl-body">
+                  <b>{t.name}</b>
+                  <p className="muted">{t.description}</p>
+                  <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => onCreate(t.id, t.id === "blank" ? "Untitled page" : t.name)}>
+                    {busy === t.id ? "Creating…" : "Use this template"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : saved === null ? (
+        <p className="muted">Loading…</p>
+      ) : saved.length === 0 ? (
+        <p className="muted">No saved page templates yet. In the editor, open the Library tab and choose “Save this page as a template”.</p>
+      ) : (
+        <div className="tpl-grid">
+          {saved.map((t) => (
+            <div key={t.id} className="tpl">
+              {t.thumbnail ? <img className="tpl-thumb tpl-img" src={t.thumbnail} alt="" /> : <div className="tpl-thumb">{t.name}</div>}
+              <div className="tpl-body">
+                <b>{t.name}</b>
+                <p className="muted">{[t.category, t.ownerType === "company" ? "Shared by your agency" : ""].filter(Boolean).join(" · ") || "Saved page"}</p>
+                <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => onCreate("", t.name, t.id)}>
+                  {busy === t.id ? "Creating…" : "Use this template"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {preview && (
+        <Modal title={preview.name} onClose={() => setPreview(null)} width={1100}>
+          {docs[preview.id] ? <iframe className="tpl-preview-frame" srcDoc={docs[preview.id]} title={preview.name} /> : <p className="muted">Loading preview…</p>}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="btn btn-primary" disabled={!!busy} onClick={() => onCreate(preview.id, preview.name)}>
+              {busy === preview.id ? "Creating…" : "Use this template"}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </Modal>
+  );
+}
+
+/** Standalone preview document; widgets render statically (no scripts). */
+function previewDoc(r: { html: string; css: string; fontUrl: string }) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${r.fontUrl}"><link rel="stylesheet" href="${origin}/runtime.css"><style>body{margin:0}${r.css}</style></head><body class="gpb-root">${r.html}</body></html>`;
 }

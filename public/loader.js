@@ -3,37 +3,59 @@
  * Usage (HighLevel "Custom Code" element):
  *   <div data-gpb-page="PAGE_ID"></div>
  *   <script src="https://YOUR-APP.vercel.app/loader.js" async></script>
- * Renders the published page inside Shadow DOM so its styles never clash with the funnel.
+ * Renders the published page inside Shadow DOM (default) so its styles never clash with the funnel,
+ * or inline when the page is set to "inline" embed mode. Only the widget scripts the page uses are loaded.
  */
 (function () {
   if (window.__gpbLoader) return window.__gpbLoader.scan();
   var cs = document.currentScript;
   var base = cs ? new URL(cs.src, location.href).origin : "";
-  var queue = [];
+  var scripts = {};
 
-  function withRuntime(cb) {
-    if (window.GPB && window.GPB.init) return cb();
-    queue.push(cb);
-    if (document.querySelector("script[data-gpb-runtime]")) return;
-    var s = document.createElement("script");
-    s.src = base + "/runtime.js";
-    s.async = true;
-    s.setAttribute("data-gpb-runtime", "");
-    s.onload = function () {
-      queue.splice(0).forEach(function (fn) {
-        fn();
+  function loadScript(src) {
+    if (!scripts[src]) {
+      scripts[src] = new Promise(function (resolve) {
+        var s = document.createElement("script");
+        s.src = src;
+        s.async = false;
+        s.onload = s.onerror = function () {
+          resolve();
+        };
+        document.head.appendChild(s);
       });
-    };
-    document.head.appendChild(s);
+    }
+    return scripts[src];
   }
 
-  function addFont(href) {
-    if (!href || document.querySelector('link[data-gpb-font="' + href + '"]')) return;
+  /** Core first (it defines window.GPB), then the page's widget modules in parallel. */
+  function loadRuntime(modules) {
+    var core = window.GPB && window.GPB.define ? Promise.resolve() : loadScript(base + "/runtime/core.js");
+    return core.then(function () {
+      return Promise.all(
+        (modules || []).map(function (m) {
+          return loadScript(base + "/runtime/m/" + encodeURIComponent(m) + ".js");
+        })
+      );
+    });
+  }
+
+  function addHeadLink(href, attr) {
+    if (!href || document.querySelector("link[" + attr + '="' + href + '"]')) return;
     var l = document.createElement("link");
     l.rel = "stylesheet";
     l.href = href;
-    l.setAttribute("data-gpb-font", href);
+    l.setAttribute(attr, href);
     document.head.appendChild(l);
+  }
+
+  function cssLinks(modules) {
+    return ['<link rel="stylesheet" href="' + base + '/runtime/core.css">']
+      .concat(
+        (modules || []).map(function (m) {
+          return '<link rel="stylesheet" href="' + base + "/runtime/m/" + encodeURIComponent(m) + '.css">';
+        })
+      )
+      .join("");
   }
 
   function runScripts(root) {
@@ -59,15 +81,16 @@
         return r.json();
       })
       .then(function (p) {
-        addFont(p.fontUrl);
-        var root = host.attachShadow ? host.shadowRoot || host.attachShadow({ mode: "open" }) : host;
+        addHeadLink(p.fontUrl, "data-gpb-font");
+        var inline = p.embedMode === "inline" || !host.attachShadow;
+        var root = inline ? host : host.shadowRoot || host.attachShadow({ mode: "open" });
         root.innerHTML =
           "<style>.gpb-root{visibility:hidden}</style>" +
-          '<link rel="stylesheet" href="' + base + '/runtime.css">' +
+          cssLinks(p.modules) +
           "<style>" + p.css + "</style>" +
           '<div class="gpb-root">' + p.html + "</div>";
         runScripts(root);
-        withRuntime(function () {
+        loadRuntime(p.modules).then(function () {
           window.GPB.init(root, { api: base, pageId: id });
         });
       })

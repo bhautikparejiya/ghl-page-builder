@@ -1,0 +1,12 @@
+/* ── Accordion ── */
+.gpb-acc-item { border: 1px solid var(--gpb-border); border-radius: var(--gpb-radius); margin-bottom: 12px; background: var(--gpb-bg); overflow: hidden; }
+.gpb-acc-head {
+  appearance: none; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 18px 22px; background: none; border: 0; font: inherit; font-weight: 600; font-size: 1.05rem; text-align: left; cursor: pointer; color: inherit;
+}
+.gpb-acc-head::after { content: "+"; font-size: 1.5rem; line-height: 1; color: var(--gpb-primary); transition: transform .25s; }
+.gpb-acc-item.is-open .gpb-acc-head::after { transform: rotate(45deg); }
+.gpb-acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.gpb-acc-item.is-open .gpb-acc-body { grid-template-rows: 1fr; }
+.gpb-acc-content { overflow: hidden; padding: 0 22px; color: var(--gpb-muted); }
+.gpb-acc-item.is-open .gpb-acc-content { padding-bottom: 18px; }

@@ -1,0 +1,8 @@
+/* ── Modal / popup ── */
+.gpb-modal { position: fixed; inset: 0; z-index: 2147483000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.65); backdrop-filter: blur(3px); }
+.gpb-modal.is-open { display: flex; animation: gpb-fade .25s ease; }
+.gpb-modal-box { position: relative; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; background: var(--gpb-bg); color: var(--gpb-text); border-radius: calc(var(--gpb-radius) * 1.5); padding: 36px; box-shadow: 0 30px 80px rgba(0,0,0,.35); animation: gpb-pop .3s cubic-bezier(.2,.9,.3,1.2); }
+.gpb-modal-close { position: absolute; top: 10px; right: 12px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--gpb-border); color: var(--gpb-text); font-size: 22px; line-height: 1; cursor: pointer; }
+/* In the editor the popup is shown inline so it can be edited */
+.gpb-editor .gpb-modal { position: relative; display: flex; inset: auto; z-index: auto; min-height: 320px; border: 2px dashed var(--gpb-primary); }
+.gpb-editor .gpb-modal::before { content: "Popup (hidden until opened) — id: " attr(id); position: absolute; top: 6px; left: 10px; color: #fff; font: 600 12px/1 sans-serif; }

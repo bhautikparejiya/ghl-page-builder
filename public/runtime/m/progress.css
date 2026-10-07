@@ -1,0 +1,5 @@
+/* ── Progress bars ── */
+.gpb-progress { margin-bottom: 18px; }
+.gpb-progress-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
+.gpb-progress-track { height: 10px; border-radius: 99px; background: var(--gpb-border); overflow: hidden; }
+.gpb-progress-bar { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--gpb-primary), var(--gpb-secondary)); transition: width 1.4s cubic-bezier(.2,.8,.2,1); }

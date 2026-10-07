@@ -1,0 +1,20 @@
+/* ── Carousel ── */
+.gpb-carousel { --gpb-pv: 1; --gpb-gap: 24px; position: relative; }
+.gpb-car-track { display: flex; gap: var(--gpb-gap); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-behavior: smooth; padding: 4px 2px; }
+.gpb-car-track::-webkit-scrollbar { display: none; }
+.gpb-car-slide { flex: 0 0 calc((100% - (var(--gpb-pv) - 1) * var(--gpb-gap)) / var(--gpb-pv)); scroll-snap-align: start; min-height: 60px; }
+.gpb-car-prev, .gpb-car-next {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0;
+  background: #fff; color: #111; box-shadow: 0 6px 18px rgba(0,0,0,.18); cursor: pointer; font-size: 20px; line-height: 1;
+}
+.gpb-car-prev { left: -10px; }
+.gpb-car-next { right: -10px; }
+.gpb-car-dots { display: flex; gap: 8px; justify-content: center; margin-top: 20px; }
+.gpb-car-dots button { width: 10px; height: 10px; border-radius: 50%; border: 0; padding: 0; background: var(--gpb-border); cursor: pointer; }
+.gpb-car-dots button.is-active { background: var(--gpb-primary); width: 26px; border-radius: 6px; }
+
+@media (max-width: 767px) {
+  .gpb-carousel[data-per-view] { --gpb-pv: 1 !important; }
+  .gpb-car-prev { left: 4px; }
+  .gpb-car-next { right: 4px; }
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { composePublished } from "@/lib/compose";
 import { CORS_HEADERS } from "@/lib/http";
 import { getPage } from "@/lib/pages";
-import { fontUrl, themeCss } from "@/lib/theme";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -9,17 +9,19 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const page = await getPage(id);
-  if (!page?.published) {
+  const composed = page ? await composePublished(page) : null;
+  if (!page?.published || !composed) {
     return NextResponse.json({ error: "Page not found or not published" }, { status: 404, headers: CORS_HEADERS });
   }
-  const { html, css, theme, version } = page.published;
   return NextResponse.json(
     {
       id: page.id,
-      version,
-      html,
-      css: themeCss(theme, ".gpb-root") + css,
-      fontUrl: fontUrl(theme),
+      version: page.published.version,
+      html: composed.html,
+      css: composed.css,
+      fontUrl: composed.fontUrl,
+      modules: composed.modules,
+      embedMode: page.settings.embedMode === "inline" ? "inline" : "shadow",
     },
     {
       headers: {

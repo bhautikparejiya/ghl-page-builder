@@ -1,0 +1,16 @@
+/* ── Navbar ── */
+.gpb-nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 24px; background: var(--gpb-bg); border-bottom: 1px solid var(--gpb-border); position: relative; z-index: 50; }
+.gpb-nav[data-sticky="true"] { position: sticky; top: 0; }
+.gpb-nav-brand { font-family: var(--gpb-font-heading); font-weight: 800; font-size: 1.3rem; color: var(--gpb-text); text-decoration: none; }
+.gpb-nav-links { display: flex; align-items: center; gap: 26px; }
+.gpb-nav-links a { color: var(--gpb-text); text-decoration: none; font-weight: 500; }
+.gpb-nav-links a:hover { color: var(--gpb-primary); }
+.gpb-nav-links .gpb-btn { padding: 10px 20px; }
+.gpb-nav-toggle { display: none; border: 0; background: none; font-size: 26px; cursor: pointer; color: var(--gpb-text); }
+
+@media (max-width: 767px) {
+  .gpb-nav-toggle { display: block; }
+  .gpb-nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; padding: 8px 16px 16px; background: var(--gpb-bg); border-bottom: 1px solid var(--gpb-border); box-shadow: 0 12px 24px -12px rgba(0,0,0,.2); }
+  .gpb-nav.is-open .gpb-nav-links { display: flex; }
+  .gpb-nav-links a { padding: 12px 0; }
+}

@@ -1,0 +1,13 @@
+/* ── Before / After ── */
+.gpb-ba { --pos: 50%; position: relative; overflow: hidden; border-radius: var(--gpb-radius); user-select: none; touch-action: pan-y; cursor: ew-resize; }
+.gpb-ba img { width: 100%; display: block; pointer-events: none; }
+.gpb-ba-after { position: absolute; inset: 0; clip-path: inset(0 0 0 var(--pos)); }
+.gpb-ba-after img { height: 100%; object-fit: cover; }
+.gpb-ba-handle { position: absolute; top: 0; bottom: 0; left: var(--pos); width: 4px; margin-left: -2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.1); }
+.gpb-ba-handle::after {
+  content: "⇆"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; border-radius: 50%;
+  background: #fff; color: #111; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+.gpb-ba-label { position: absolute; top: 14px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: .8rem; font-weight: 600; }
+.gpb-ba-label--before { left: 14px; }
+.gpb-ba-label--after { right: 14px; }

@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       },
       {
         // Public assets are loaded from customer funnel domains.
-        source: "/(loader.js|runtime.js|runtime.css)",
+        source: "/(loader.js|runtime.js|runtime.css|runtime/.*)",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Cache-Control", value: "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400" },

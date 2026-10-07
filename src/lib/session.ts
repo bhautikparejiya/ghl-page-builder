@@ -8,6 +8,8 @@ export interface Session {
   userName?: string;
   email?: string;
   role?: string;
+  /** "agency" users can share templates and brand kits with every sub-account. */
+  userType?: "agency" | "location";
   exp: number; // unix seconds
 }
 

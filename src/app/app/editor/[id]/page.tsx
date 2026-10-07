@@ -11,5 +11,5 @@ const PageEditor = dynamic(() => import("@/components/editor/Editor"), {
 
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
-  return <PageEditor pageId={id} />;
+  return <PageEditor key={id} mode={{ kind: "page", id }} />;
 }
