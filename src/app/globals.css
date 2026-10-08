@@ -405,3 +405,19 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color
 .tpl { cursor: default; }
 .global-panel { display: grid; gap: 10px; padding: 14px; align-content: start; font-size: 13.5px; line-height: 1.5; }
 .global-panel p { margin: 0; }
+
+/* Top bar on narrow screens (e.g. HighLevel with its sidebar open): nothing may overlap. */
+.ed-top-left { overflow: hidden; }
+.ed-devices { flex: none; }
+@media (max-width: 1000px) {
+  .ed-top { gap: 6px; padding: 0 8px; }
+  .ed-top .save-state { display: none; }
+  .ed-top-right { gap: 4px; }
+  .ed-top-right .btn-sm { padding: 0 8px; }
+  .ed-top-right .icon-btn { width: 30px; }
+}
+@media (max-width: 860px) {
+  .ed-left { width: 200px; }
+  .ed-right { width: 240px; }
+  .ed-top-right .icon-btn[title^="Keyboard"], .ed-top-right .icon-btn[title^="Redo"] { display: none; }
+}

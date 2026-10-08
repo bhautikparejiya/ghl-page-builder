@@ -9,6 +9,11 @@ export const GHL_SCOPES = [
   "medias.readonly",
   "medias.write",
   "locations.readonly",
+  "locations/customFields.readonly",
+  "locations/customValues.readonly",
+  "calendars.readonly",
+  "opportunities.readonly",
+  "opportunities.write",
   "oauth.readonly",
   "oauth.write",
 ];

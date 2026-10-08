@@ -6,27 +6,33 @@ HighLevel-native builder can do.
 
 ---
 
-## Status (updated 2026-10-07)
+## Status (updated 2026-10-08)
 
-**Sprint 1 done:**
-- Phase 0: revision history (publish + 30-min draft snapshots, History modal with restore), optional `PAGES_URL`
-  pages domain enforced by `src/proxy.ts`, debounced theme saves, "Elementor" removed from public copy.
-- Widget schema system (`src/lib/widgets/`) with server-safe renderers, a generated Content / Design / Advanced
-  panel, per-device values with inheritance and reset, theme-bound colors, typography, linked spacing, repeater,
-  custom CSS with `&`. Undo/redo works through the editor's normal history.
-- **Heading, Button, Accordion** ported. The block library inserts the new versions. Existing pages keep their old
-  elements, which still use the old panels.
-- Fixed: local dev failed on a fresh clone (`.data/` dir was never created).
+All phases (0–6) are implemented on branch `feature/builder-v2` and tested in a local browser, except the items marked
+"needs a HighLevel install" below. Typecheck and `next build` pass.
 
-**Decisions made while building:**
-- New widgets reuse the existing runtime markup (`gpb-acc-*`, `data-gpb-*` attributes) so `runtime.js` needs no
-  changes. Generated per-instance CSS is scoped by `pf-w-<id>`, and new base styles use `pf-*`.
-- Per-instance CSS is emitted inside the widget in the canvas, and collected into the page CSS on save/publish.
+| Phase | Status |
+|---|---|
+| 0. Foundations | Done: revisions + restore, pages domain (`PAGES_URL`), debounced saves, form settings moved into widget settings, copy cleanup |
+| 1. Editing model | Done: 35 schema widgets, Section/Container layout with drop rules, all control types, Lucide icon set, templates rebuilt on widgets |
+| 2. Editing comfort | Done: "+" section picker, right-click menu, on-canvas text editing + toolbar, Ctrl+K palette, widget search + recently used, shortcuts, level colors, empty states |
+| 3. Design system | Done: brand kit per sub-account + agency default, text styles, logo (suggested from the HighLevel profile) |
+| 4. Reuse | Done: saved sections/pages with thumbnails, global sections, agency sharing, template previews |
+| 5. HighLevel features | Done; parts need a HighLevel install to verify (see below) |
+| 6. Performance & SEO | Done: per-widget runtime modules, custom domains, sitemap/robots, canonical, OG image, noindex, FAQ JSON-LD, inline embed mode |
 
-**Next up:** inline text editing on the canvas, port Text / Image / Icon list / Form (moving form config off DOM
-attributes), Section/Container layout widgets with nesting rules, then Phase 2.
+**Needs a HighLevel install to verify** (built against HighLevel's published OpenAPI specs): custom field mapping
+(`customFields: [{ id, field_value }]`), opportunity creation, calendar list, custom values / location tokens, logo suggestion.
+Add the new scopes listed in the README first.
 
----
+**Known limits / decisions:**
+- Thumbnails are captured in the browser (html-to-image), not rendered on a server.
+- Payments: the Product widget links to a HighLevel payment link / order form (no checkout embed API).
+  Reviews: embeds HighLevel's reviews widget (no read API).
+- Custom domains need the customer's CNAME plus the domain on the Vercel project (automatic with `VERCEL_TOKEN`).
+- Ctrl+Alt+C / Ctrl+Alt+V (copy/paste style) couldn't be exercised with the test browser's synthetic key events;
+  the same actions work from the right-click menu.
+- Pages created before brand kits keep their own theme until switched to the kit (Brand kit dialog).
 
 ## 1. Review: where PageForge is today
 
