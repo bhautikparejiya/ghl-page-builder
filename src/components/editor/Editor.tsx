@@ -242,7 +242,19 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     box.replaceChildren();
     if (!blocks.length) return;
     const el = ed.BlockManager.render(blocks, { external: true });
-    if (el) box.appendChild(el);
+    if (!el) return;
+    // The external render groups tiles by category (a second "Layout" heading etc.). Flatten it into one grid,
+    // in most-recent order; the tiles keep their drag handlers.
+    const grid = document.createElement("div");
+    grid.className = "gjs-blocks-c";
+    const tiles = Array.from(el.querySelectorAll<HTMLElement>(".gjs-block"));
+    const byLabel = (b: any) => tiles.find((t) => t.querySelector(".gjs-block-label")?.textContent?.trim() === String(b.getLabel()).trim());
+    blocks.forEach((b) => {
+      const t = byLabel(b);
+      if (t && !grid.contains(t)) grid.appendChild(t);
+    });
+    tiles.forEach((t) => !grid.contains(t) && grid.appendChild(t));
+    box.appendChild(grid);
   }
 
   /* ── Boot GrapesJS ── */
@@ -401,8 +413,8 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       keymap("pf:palette", "⌘+k, ctrl+k", () => setModal("palette"));
       keymap("pf:preview", "⌘+shift+p, ctrl+shift+p", () => actionsRef.current.preview?.());
       keymap("pf:device", "⌘+shift+m, ctrl+shift+m", () => actionsRef.current.cycleDevice?.());
-      keymap("pf:copy-style", "⌘+alt+c, ctrl+alt+c", () => copyStyle(editor!.getSelected()) && flash("Style copied"));
-      keymap("pf:paste-style", "⌘+alt+v, ctrl+alt+v", () => pasteStyle(editor!.getSelected()));
+      keymap("pf:copy-style", "alt+shift+c, ⌥+shift+c", () => copyStyle(editor!.getSelected()) && flash("Style copied"));
+      keymap("pf:paste-style", "alt+shift+v, ⌥+shift+v", () => pasteStyle(editor!.getSelected()));
       keymap("pf:shortcuts", "shift+/", () => setModal("shortcuts"));
     })();
 

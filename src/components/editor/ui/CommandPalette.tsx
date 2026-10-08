@@ -100,7 +100,7 @@ export const SHORTCUTS: [string, string][] = [
   ["Ctrl + S", "Save now"],
   ["Ctrl + D", "Duplicate the selected element"],
   ["Ctrl + C / Ctrl + V", "Copy / paste the selected element"],
-  ["Ctrl + Alt + C / Ctrl + Alt + V", "Copy / paste style"],
+  ["Alt + Shift + C / Alt + Shift + V", "Copy / paste style"],
   ["Delete", "Delete the selected element"],
   ["Ctrl + Shift + M", "Switch device (desktop → tablet → mobile)"],
   ["Ctrl + Shift + P", "Preview"],

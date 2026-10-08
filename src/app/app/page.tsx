@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Submission[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [showCheck, setShowCheck] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -99,9 +100,14 @@ export default function Dashboard() {
         </div>
         <div className="dash-head-right">
           {connected !== null && (
-            <span className={`pill ${connected ? "ok" : "warn"}`} title={`Location: ${user.locationId}`}>
+            <button
+              type="button"
+              className={`pill pill-btn ${connected ? "ok" : "warn"}`}
+              title={`Location: ${user.locationId}. Click to check the HighLevel connection.`}
+              onClick={() => setShowCheck(true)}
+            >
               {connected ? "● CRM connected" : "● CRM not connected"}
-            </span>
+            </button>
           )}
           <button className="btn btn-primary" onClick={() => setShowNew(true)}>
             + New page
@@ -160,6 +166,8 @@ export default function Dashboard() {
       )}
 
       {showNew && <TemplatePicker templates={templates} busy={busy} onCreate={create} onClose={() => setShowNew(false)} />}
+
+      {showCheck && <ConnectionCheck onClose={() => setShowCheck(false)} />}
 
       {embedFor && (
         <Modal title={`Embed "${embedFor.name}"`} onClose={() => setEmbedFor(null)} width={640}>
@@ -324,4 +332,77 @@ function TemplatePicker({ templates, busy, onCreate, onClose }: {
 function previewDoc(r: { html: string; css: string; fontUrl: string }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${r.fontUrl}"><link rel="stylesheet" href="${origin}/runtime.css"><style>body{margin:0}${r.css}</style></head><body class="gpb-root">${r.html}</body></html>`;
+}
+
+interface CheckRow {
+  id: string;
+  label: string;
+  usedFor: string;
+  scope: string;
+  ok: boolean;
+  detail: string;
+  fix?: string;
+}
+
+/** Calls every HighLevel API PageForge uses and shows what works and what's missing. */
+function ConnectionCheck({ onClose }: { onClose: () => void }) {
+  const { api } = useSession();
+  const [res, setRes] = useState<{ installed: boolean; checks: CheckRow[]; message?: string } | null>(null);
+  const [error, setError] = useState("");
+  const run = useCallback(() => {
+    setRes(null);
+    setError("");
+    api<{ installed: boolean; checks: CheckRow[]; message?: string }>("/api/highlevel/check")
+      .then(setRes)
+      .catch((e) => setError((e as Error).message));
+  }, [api]);
+  useEffect(run, [run]);
+  const failing = res?.checks.filter((c) => !c.ok) ?? [];
+  return (
+    <Modal title="HighLevel connection" onClose={onClose} width={720}>
+      {error && <p className="error">{error}</p>}
+      {!res && !error && <p className="muted">Checking each HighLevel API PageForge uses…</p>}
+      {res && !res.installed && <div className="notice warn">{res.message}</div>}
+      {res?.installed && (
+        <>
+          <p className="muted">
+            {failing.length === 0
+              ? "Everything PageForge uses is working for this sub-account."
+              : `${failing.length} of ${res.checks.length} checks need attention. Features that depend on them are hidden or empty until fixed.`}
+          </p>
+          <div className="table-wrap">
+            <table className="table check-table">
+              <thead>
+                <tr>
+                  <th>API</th>
+                  <th>Used for</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {res.checks.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <b>{c.label}</b>
+                      <div className="muted check-scope">{c.scope}</div>
+                    </td>
+                    <td>{c.usedFor}</td>
+                    <td>
+                      <span className={`pill ${c.ok ? "ok" : "warn"}`}>{c.ok ? "✓ " : "✗ "}{c.detail}</span>
+                      {c.fix && <p className="check-fix">{c.fix}</p>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <div className="check-foot">
+        <button className="btn btn-sm" onClick={run}>
+          Run again
+        </button>
+      </div>
+    </Modal>
+  );
 }

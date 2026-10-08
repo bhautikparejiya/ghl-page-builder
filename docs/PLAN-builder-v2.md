@@ -30,8 +30,7 @@ Add the new scopes listed in the README first.
 - Payments: the Product widget links to a HighLevel payment link / order form (no checkout embed API).
   Reviews: embeds HighLevel's reviews widget (no read API).
 - Custom domains need the customer's CNAME plus the domain on the Vercel project (automatic with `VERCEL_TOKEN`).
-- Ctrl+Alt+C / Ctrl+Alt+V (copy/paste style) couldn't be exercised with the test browser's synthetic key events;
-  the same actions work from the right-click menu.
+- Copy/paste style shortcuts are Alt+Shift+C / Alt+Shift+V (Ctrl+Alt is AltGr on many keyboard layouts).
 - Pages created before brand kits keep their own theme until switched to the kit (Brand kit dialog).
 
 ## 1. Review: where PageForge is today

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 
 /**
@@ -111,12 +112,50 @@ CREATE TABLE IF NOT EXISTS location_cache (
 
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
+/** Changes whenever SCHEMA changes, so migrations only run once per schema version. */
+const SCHEMA_VERSION = createHash("sha1").update(SCHEMA).digest("hex").slice(0, 16);
+/** Arbitrary constant: the advisory lock that serialises schema migrations across instances. */
+const MIGRATION_LOCK = 72_480_311;
+
+/** Deadlock / serialization failures are safe to retry: Postgres rolled the statement back. */
+const RETRYABLE = new Set(["40P01", "40001", "55P03"]);
+const isRetryable = (err: unknown) => RETRYABLE.has(String((err as { code?: string })?.code ?? ""));
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= attempts || !isRetryable(err)) throw err;
+      await new Promise((r) => setTimeout(r, 50 * 2 ** i + Math.random() * 100));
+    }
+  }
+}
+
 async function createNeon(): Promise<QueryFn> {
   const sql = neon(databaseUrl!);
-  // Idempotent schema setup, sent as a single HTTP round trip on cold start.
-  const statements = SCHEMA.split(";").map((s) => s.trim()).filter(Boolean);
-  await sql.transaction(statements.map((s) => sql.query(s)));
-  return (text, params = []) => sql.query(text, params) as Promise<Row[]>;
+  // Fast path: schema already at this version. A plain read takes no locks, so warm-ups never block each other.
+  const current = await sql
+    .query("SELECT value FROM app_meta WHERE key = 'schema_version'")
+    .then((rows) => (rows as Row[])[0]?.value)
+    .catch(() => null); // app_meta doesn't exist yet on a fresh database
+  if (current !== SCHEMA_VERSION) {
+    // Several serverless instances can cold-start at once. DDL such as ALTER TABLE takes exclusive locks, so
+    // concurrent migrations would deadlock each other; the advisory lock makes them run one at a time.
+    const statements = SCHEMA.split(";").map((s) => s.trim()).filter(Boolean);
+    await withRetry(() =>
+      sql.transaction([
+        sql.query(`SELECT pg_advisory_xact_lock(${MIGRATION_LOCK})`),
+        ...statements.map((s) => sql.query(s)),
+        sql.query("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"),
+        sql.query(
+          "INSERT INTO app_meta (key, value) VALUES ('schema_version', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+          [SCHEMA_VERSION],
+        ),
+      ]),
+    );
+  }
+  return (text, params = []) => withRetry(() => sql.query(text, params) as Promise<Row[]>);
 }
 
 async function createPglite(): Promise<QueryFn> {

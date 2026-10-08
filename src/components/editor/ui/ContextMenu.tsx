@@ -83,8 +83,8 @@ export default function ContextMenu({ editor, state, onClose, onSaveToLibrary, o
         editor.runCommand("core:paste");
       })}
       <hr />
-      {item("Copy style", "Ctrl+Alt+C", () => copyStyle(c) && flash("Style copied"), !def)}
-      {item("Paste style", "Ctrl+Alt+V", () => pasteStyle(c), !canPasteStyle(c))}
+      {item("Copy style", "Alt+Shift+C", () => copyStyle(c) && flash("Style copied"), !def)}
+      {item("Paste style", "Alt+Shift+V", () => pasteStyle(c), !canPasteStyle(c))}
       {item("Reset style", "", () => resetStyle(c), !def)}
       <hr />
       {item("Select parent", "", () => c.parent() && c.parent()!.get("type") !== "wrapper" && editor.select(c.parent()!), !c.parent() || c.parent()!.get("type") === "wrapper")}
