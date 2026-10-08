@@ -75,6 +75,18 @@ export default function Dashboard() {
     load();
   };
 
+  const unpublish = async (p: PageRow) => {
+    if (!confirm(`Unpublish "${p.name}"?
+
+It goes back to draft: embedded copies stop showing it and the hosted link stops working (within about 30 seconds). Your design is kept and you can publish again any time.`)) return;
+    try {
+      await api(`/api/pages/${p.id}/publish`, { method: "DELETE" });
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const remove = async (p: PageRow) => {
     if (!confirm(`Delete "${p.name}"? Embedded copies of this page will stop showing. This cannot be undone.`)) return;
     await api(`/api/pages/${p.id}`, { method: "DELETE" });
@@ -135,7 +147,7 @@ export default function Dashboard() {
                 <h3>{p.name}</h3>
                 <p className="muted">Edited {timeAgo(p.updatedAt)}</p>
                 <span className={`pill ${!p.publishedAt ? "" : p.hasUnpublishedChanges ? "warn" : "ok"}`}>
-                  {!p.publishedAt ? "Draft" : p.hasUnpublishedChanges ? "Published · unpublished changes" : "Published"}
+                  {!p.publishedAt ? "Draft" : p.hasUnpublishedChanges ? "Live · unpublished changes" : "Live"}
                 </span>
               </Link>
               <div className="page-card-actions">
@@ -156,6 +168,11 @@ export default function Dashboard() {
                 <button className="btn btn-sm" onClick={() => duplicate(p)}>
                   Duplicate
                 </button>
+                {p.publishedAt && (
+                  <button className="btn btn-sm" onClick={() => unpublish(p)} title="Take the page offline and back to draft">
+                    Unpublish
+                  </button>
+                )}
                 <button className="btn btn-sm btn-danger" onClick={() => remove(p)}>
                   Delete
                 </button>

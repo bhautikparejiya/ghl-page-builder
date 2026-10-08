@@ -60,3 +60,17 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
   await addRevision(page, "publish", page.published.version);
   return NextResponse.json({ ok: true, publishedAt: now, version: page.published.version });
 });
+
+/**
+ * Unpublish: takes the page offline (embeds render nothing, the hosted link and custom domains return 404) and
+ * returns it to draft. The draft is untouched, and the last published version stays in revision history.
+ */
+export const DELETE = handle(async (req: Request, { params }: Ctx) => {
+  const page = await requireOwnedPage(requireSession(req), (await params).id);
+  if (page.published) {
+    page.published = undefined;
+    page.updatedAt = Date.now();
+    await savePage(page);
+  }
+  return NextResponse.json({ ok: true });
+});

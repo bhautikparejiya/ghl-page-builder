@@ -37,6 +37,13 @@ type SaveState = "saved" | "saving" | "dirty" | "error";
 type Modals = null | "kit" | "theme" | "settings" | "embed" | "history" | "shortcuts" | "palette";
 type Kind = "section" | "container" | "widget";
 
+interface Notice {
+  kind: "success" | "error" | "info";
+  title: string;
+  body?: string;
+  actions?: { label: string; href?: string; onClick?: () => void }[];
+}
+
 export type EditorMode = { kind: "page"; id: string } | { kind: "library"; id: string };
 
 interface HighLevelData {
@@ -143,14 +150,21 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const [publishedAt, setPublishedAt] = useState<number | null>(null);
   const [preview, setPreview] = useState(false);
   const [connected, setConnected] = useState(true);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<Notice | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True when the draft has changes that aren't live yet. */
+  const [unpublished, setUnpublished] = useState(false);
+  const [publishMenu, setPublishMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [ready, setReady] = useState(false);
 
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2600);
+  const notify = useCallback((n: Notice) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(n);
+    toastTimer.current = setTimeout(() => setToast(null), n.kind === "error" ? 9000 : n.actions?.length ? 7000 : 3000);
   }, []);
+  /** Short confirmation for small actions. */
+  const flash = useCallback((msg: string) => notify({ kind: "info", title: msg }), [notify]);
 
   const kit = useMemo(() => effectiveKit(kitInfo.kit, isPage ? theme : undefined), [kitInfo.kit, theme, isPage]);
 
@@ -185,6 +199,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const scheduleSave = useCallback(() => {
     if (Date.now() - readyAt.current < 1500) return; // ignore init-time updates
     setSave("dirty");
+    setUnpublished(true);
     // Library items (global sections) go live on save, so they're saved explicitly.
     if (mode.kind === "library") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -301,6 +316,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         setPage(start.page);
         setTheme(start.page.theme);
         setPublishedAt(start.page.published?.publishedAt ?? null);
+        setUnpublished(!!start.page.published && start.page.updatedAt > start.page.published.publishedAt);
       } else setLibName(start.name);
 
       const startKit = effectiveKit(kitRes?.kit ?? DEFAULT_KIT, start.theme);
@@ -504,6 +520,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     if (!isPage) return;
     const next = { ...theme, ...patch };
     setTheme(next);
+    setUnpublished(true);
     // Color pickers and sliders fire continuously; save once they settle.
     setSave("dirty");
     if (themeTimer.current) clearTimeout(themeTimer.current);
@@ -520,7 +537,11 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const publish = async () => {
     const ed = editorRef.current;
     if (!ed || !isPage) return;
+    const firstTime = !publishedAt;
+    // Publishing saves the draft too; a pending autosave afterwards would wrongly mark the page as changed.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     setPublishing(true);
+    setPublishMenu(false);
     try {
       const forms: Record<string, FormConfig> = {};
       // Classic forms keep their settings in attributes.
@@ -565,9 +586,47 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       });
       setPublishedAt(res.publishedAt);
       setSave("saved");
-      flash("Published! Live pages update within ~30 seconds.");
+      setUnpublished(false);
+      notify(
+        firstTime
+          ? {
+              kind: "success",
+              title: "Your page is live",
+              body: "Add it to a HighLevel funnel or website with the embed code, or share the hosted link.",
+              actions: [
+                { label: "Get embed code", onClick: () => setModal("embed") },
+                { label: "View live page", href: `/p/${mode.id}` },
+              ],
+            }
+          : {
+              kind: "success",
+              title: "Changes published",
+              body: "The hosted page is updated. Embedded copies in HighLevel refresh within about 30 seconds.",
+              actions: [{ label: "View live page", href: `/p/${mode.id}` }],
+            },
+      );
     } catch (e) {
-      alert(`Publish failed: ${(e as Error).message}`);
+      notify({ kind: "error", title: firstTime ? "Couldn't publish the page" : "Couldn't publish your changes", body: (e as Error).message });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const unpublish = async () => {
+    if (!isPage || !publishedAt) return;
+    setPublishMenu(false);
+    const ok = confirm(
+      "Unpublish this page?\n\nIt goes back to draft: embedded copies in HighLevel stop showing it, and the hosted link and any custom domains stop working (within about 30 seconds). Your design is kept, and you can publish again at any time.",
+    );
+    if (!ok) return;
+    setPublishing(true);
+    try {
+      await api(`/api/pages/${mode.id}/publish`, { method: "DELETE" });
+      setPublishedAt(null);
+      setUnpublished(false);
+      notify({ kind: "info", title: "Page unpublished", body: "It's a draft again and no longer visible to visitors. Click Publish to put it back online." });
+    } catch (e) {
+      notify({ kind: "error", title: "Couldn't unpublish the page", body: (e as Error).message });
     } finally {
       setPublishing(false);
     }
@@ -691,7 +750,8 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       out.push({ id: `lib-${item.id}`, group: "Add from library", label: `Add: ${item.name}`, keywords: item.category, run: () => insertLibraryItem(item, topLevelOf(ed.getSelected())) });
     }
     const act = (id: string, label: string, run: () => void, hint?: string, keywords?: string) => out.push({ id, group: "Actions", label, run, hint, keywords });
-    if (isPage) act("publish", "Publish", publish, "", "go live");
+    if (isPage) act("publish", publishedAt ? "Update (publish changes)" : "Publish", publish, "", "go live publish update");
+    if (isPage && publishedAt) act("unpublish", "Unpublish (back to draft)", unpublish, "", "offline draft take down");
     act("save", "Save now", () => void saveNow(), "Ctrl+S");
     act("preview", "Toggle preview", togglePreview, "Ctrl+Shift+P");
     act("undo", "Undo", () => ed.UndoManager.undo(), "Ctrl+Z");
@@ -774,6 +834,14 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
             />
           )}
           {!isPage && <span className="pill pill-global">Global section</span>}
+          {isPage && page && (
+            <span
+              className={`pub-status ${!publishedAt ? "is-draft" : unpublished ? "is-changed" : "is-live"}`}
+              title={publishedAt ? `Last published ${new Date(publishedAt).toLocaleString()}` : "Not published yet"}
+            >
+              {!publishedAt ? "Draft" : unpublished ? "Unpublished changes" : "Live"}
+            </span>
+          )}
           <span className={`save-state ${save}`}>{saveLabel}</span>
         </div>
 
@@ -816,9 +884,41 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
               <button className="btn btn-sm" onClick={() => setModal("embed")}>
                 Embed
               </button>
-              <button className="btn btn-sm btn-primary" onClick={publish} disabled={publishing}>
-                {publishing ? "Publishing…" : "Publish"}
-              </button>
+              <div className="pub-split">
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={publish}
+                  disabled={publishing}
+                  title={publishedAt ? (unpublished ? "Publish your latest changes" : "Everything is published. Click to publish again.") : "Make this page live"}
+                >
+                  {publishing ? (publishedAt ? "Updating…" : "Publishing…") : publishedAt ? "Update" : "Publish"}
+                </button>
+                {publishedAt && (
+                  <button
+                    className="btn btn-sm btn-primary pub-caret"
+                    aria-label="More publish options"
+                    aria-expanded={publishMenu}
+                    disabled={publishing}
+                    onClick={() => setPublishMenu(!publishMenu)}
+                  >
+                    ▾
+                  </button>
+                )}
+                {publishMenu && (
+                  <div className="pub-menu" role="menu" onMouseLeave={() => setPublishMenu(false)}>
+                    <a role="menuitem" href={`/p/${mode.id}`} target="_blank" rel="noreferrer" onClick={() => setPublishMenu(false)}>
+                      View live page ↗
+                    </a>
+                    <button role="menuitem" onClick={() => (setPublishMenu(false), setModal("embed"))}>
+                      Get embed code
+                    </button>
+                    <hr />
+                    <button role="menuitem" className="danger" onClick={unpublish}>
+                      Unpublish (back to draft)
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <button
@@ -946,7 +1046,42 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         </aside>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className={`notice-toast is-${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>
+          <span className="notice-toast-icon" aria-hidden="true">
+            {toast.kind === "success" ? "✓" : toast.kind === "error" ? "!" : "i"}
+          </span>
+          <div className="notice-toast-body">
+            <b>{toast.title}</b>
+            {toast.body && <p>{toast.body}</p>}
+            {toast.actions?.length ? (
+              <div className="notice-toast-actions">
+                {toast.actions.map((a) =>
+                  a.href ? (
+                    <a key={a.label} className="btn btn-sm" href={a.href} target="_blank" rel="noreferrer">
+                      {a.label} ↗
+                    </a>
+                  ) : (
+                    <button
+                      key={a.label}
+                      className="btn btn-sm"
+                      onClick={() => {
+                        a.onClick?.();
+                        setToast(null);
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : null}
+          </div>
+          <button className="icon-btn notice-toast-close" aria-label="Dismiss" onClick={() => setToast(null)}>
+            ×
+          </button>
+        </div>
+      )}
 
       {ctxMenu && ed && (
         <ContextMenu
