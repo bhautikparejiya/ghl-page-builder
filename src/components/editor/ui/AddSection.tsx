@@ -2,7 +2,7 @@
 
 import type { Component, Editor } from "grapesjs";
 import { useEffect, useState } from "react";
-import { SECTIONS, toEditorHtml } from "@/lib/blueprints";
+import { SECTION_CATEGORIES, SECTIONS, toEditorHtml } from "@/lib/blueprints";
 import { componentType } from "@/lib/widgets";
 import { iconSvg } from "@/lib/widgets/render";
 import { topLevelOf } from "../actions";
@@ -122,8 +122,14 @@ export function SectionPicker({ library, onPick, onClose }: {
   onPick: (content: unknown, opts?: { globalId?: string; libraryId?: string }) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"structure" | "sections" | "saved">("structure");
+  const [tab, setTab] = useState<"structure" | "sections" | "saved">("sections");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string>("All");
   const saved = library.filter((i) => i.kind === "section");
+  const q = query.trim().toLowerCase();
+  const ready = Object.entries(SECTIONS).filter(
+    ([, sec]) => (category === "All" || sec.category === category) && (!q || `${sec.label} ${sec.description} ${sec.category}`.toLowerCase().includes(q)),
+  );
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal picker" style={{ maxWidth: 760 }} role="dialog" aria-label="Add a section">
@@ -156,14 +162,35 @@ export function SectionPicker({ library, onPick, onClose }: {
             </div>
           )}
           {tab === "sections" && (
-            <div className="picker-grid">
-              {Object.entries(SECTIONS).map(([id, sec]) => (
-                <button key={id} type="button" className="picker-tile" onClick={() => onPick(toEditorHtml(sec.nodes))}>
-                  <span className="picker-icon" dangerouslySetInnerHTML={{ __html: iconSvg(sec.icon) }} />
-                  <span>{sec.label}</span>
-                </button>
+            <>
+              <div className="picker-filter">
+                <input className="input" type="search" placeholder="Search sections…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+                <div className="picker-cats">
+                  {["All", ...SECTION_CATEGORIES].map((c) => (
+                    <button key={c} type="button" className={`chip${category === c ? " on" : ""}`} onClick={() => setCategory(c)}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {ready.length === 0 && <p className="muted">No sections match. Try another word.</p>}
+              {SECTION_CATEGORIES.filter((c) => ready.some(([, sec]) => sec.category === c)).map((c) => (
+                <div key={c} className="picker-group">
+                  <h4 className="picker-group-title">{c}</h4>
+                  <div className="picker-grid">
+                    {ready
+                      .filter(([, sec]) => sec.category === c)
+                      .map(([id, sec]) => (
+                        <button key={id} type="button" className="picker-tile picker-tile--section" title={sec.description} onClick={() => onPick(toEditorHtml(sec.nodes))}>
+                          <span className="picker-icon" dangerouslySetInnerHTML={{ __html: iconSvg(sec.icon) }} />
+                          <span>{sec.label}</span>
+                          <small className="muted">{sec.description}</small>
+                        </button>
+                      ))}
+                  </div>
+                </div>
               ))}
-            </div>
+            </>
           )}
           {tab === "saved" &&
             (saved.length === 0 ? (

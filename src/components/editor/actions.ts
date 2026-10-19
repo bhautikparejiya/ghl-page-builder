@@ -145,8 +145,8 @@ export function serialize(editor: Editor, root: Component | "page") {
     widgetCss.push(r.css);
     r.fonts.forEach((f) => fonts.add(f));
   }
-  const classicCss = comps.map((c) => editor.getCss({ component: c } as any) ?? "").join("");
-  return { components, html, css: classicCss + widgetCss.join(""), fonts: [...fonts] };
+  const editorCss = comps.map((c) => editor.getCss({ component: c } as any) ?? "").join("");
+  return { components, html, css: editorCss + widgetCss.join(""), fonts: [...fonts] };
 }
 
 /** Small JPEG snapshot of a canvas element for library thumbnails (best effort). */

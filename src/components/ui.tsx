@@ -33,7 +33,7 @@ export function Modal({
   );
 }
 
-function CopyBox({ value, multiline }: { value: string; multiline?: boolean }) {
+export function CopyBox({ value, multiline }: { value: string; multiline?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {

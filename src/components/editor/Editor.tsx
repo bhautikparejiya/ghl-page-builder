@@ -2,8 +2,6 @@
 
 import grapesjs, { type Component, type Editor as GEditor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
-import customCodePlugin from "grapesjs-custom-code";
-import formsPlugin from "grapesjs-plugin-forms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -62,8 +60,6 @@ interface HighLevelData {
 const EMPTY_HL: HighLevelData = { workflows: [], calendars: [], pipelines: [], customFields: [], customValues: [], errors: {} };
 
 const stripBody = (html: string) => html.replace(/^\s*<body[^>]*>/i, "").replace(/<\/body>\s*$/i, "");
-/** Classic form settings are kept server-side only; strip them from the public HTML. */
-const stripFormConfig = (html: string) => html.replace(/\sdata-(tags|workflow|success|redirect)="[^"]*"/g, "");
 
 /** Logical page width per device. The canvas is zoomed out to fit when the editor area is narrower. */
 const DEVICE_WIDTH: Record<Device, number> = { desktop: 1240, tablet: 820, mobile: 390 };
@@ -125,7 +121,6 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const isPage = mode.kind === "page";
   const editorRef = useRef<GEditor | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const hlRef = useRef<HighLevelData>(EMPTY_HL);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const themeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readyAt = useRef(0);
@@ -149,7 +144,6 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   /** The left panel shows either the widget library ("elements") or the selected element's settings ("edit"). */
   const [panelView, setPanelView] = useState<"elements" | "edit">("elements");
   const [navOpen, setNavOpen] = useState(false);
-  const [rightTab, setRightTab] = useState<"style" | "settings">("style");
   const [modal, setModal] = useState<Modals>(null);
   const [selected, setSelected] = useState<Component | null>(null);
   const [inline, setInline] = useState<{ component: Component; el: HTMLElement } | null>(null);
@@ -340,7 +334,6 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       if (cancelled) return;
 
       const hlData: HighLevelData = { ...EMPTY_HL, ...(hlRes ?? {}), workflows: wf.workflows.map((w) => ({ value: w.id, label: w.name })) };
-      hlRef.current = hlData;
       setHl(hlData);
       if (kitRes) setKitInfo(kitRes);
       if (start.page) {
@@ -360,9 +353,6 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         panels: { defaults: [] },
         blockManager: { appendTo: "#gpb-blocks" },
         layerManager: { appendTo: "#gpb-layers" },
-        styleManager: { appendTo: "#gpb-styles" },
-        selectorManager: { componentFirst: true },
-        traitManager: { appendTo: "#gpb-traits" },
         canvasCss: CANVAS_CSS,
         deviceManager: {
           devices: [
@@ -394,12 +384,10 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           },
         },
         plugins: [
-          (ed: GEditor) => formsPlugin(ed, { blocks: [] }),
           (ed: GEditor) => widgetComponents(ed, { onInlineEdit: setInline }),
           globalSection,
           sitePart,
-          (ed: GEditor) => gpbPlugin(ed, { getWorkflows: () => hlRef.current.workflows.map((w) => ({ id: w.value, name: w.label })) }),
-          (ed: GEditor) => customCodePlugin(ed, { blockCustomCode: false as any }),
+          gpbPlugin,
         ],
       });
       editorRef.current = editor;
@@ -410,6 +398,8 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         setCanvasHead(ed, "gpb-theme", "style", kitCss(startKit, "body.gpb-root"));
         if (start.page) applySite(ed, start.page.settings);
         ed.runCommand("core:component-outline");
+        // The page body has no settings of its own (page-wide options live in Settings and Brand kit).
+        ed.getWrapper()?.set({ selectable: false, hoverable: false });
         ed.BlockManager.getCategories().forEach((c: any) => c.set("open", true));
         renderRecent(ed);
         fitCanvas(ed);
@@ -579,21 +569,6 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     setPublishMenu(false);
     try {
       const forms: Record<string, FormConfig> = {};
-      // Classic forms keep their settings in attributes.
-      ed.getWrapper()
-        ?.findType("gpb-form")
-        .forEach((f) => {
-          const a = f.getAttributes();
-          forms[a["data-gpb-form"]] = {
-            tags: String(a["data-tags"] || "")
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-            workflowId: a["data-workflow"] || undefined,
-            successMessage: a["data-success"] || undefined,
-            redirectUrl: a["data-redirect"] || undefined,
-          };
-        });
       for (const { component, settings } of findWidgets(ed, "form")) forms[`pf-${uidOf(component)}`] = formConfig(settings);
 
       // FAQ structured data from accordions marked as FAQ.
@@ -617,7 +592,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       const { fonts, ...draft } = buildDraft();
       const res = await api<{ publishedAt: number }>(`/api/pages/${mode.id}/publish`, {
         method: "POST",
-        body: { draft: { ...draft, html: stripFormConfig(draft.html) }, theme, forms, fonts, jsonLd },
+        body: { draft, theme, forms, fonts, jsonLd },
       });
       setPublishedAt(res.publishedAt);
       setSave("saved");
@@ -1136,24 +1111,11 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
                 footer={isPage && selSettings?._abTest ? <AbStats pageId={mode.id} test={String(selSettings._abTest)} /> : null}
               />
             )}
-            <div className="classic-panel" hidden={!selected || !!selectedDef || selected?.get("type") === GLOBAL_TYPE || isSitePart(selected)}>
-              <div className="tabs">
-                <button className={rightTab === "style" ? "active" : ""} onClick={() => setRightTab("style")}>
-                  Style
-                </button>
-                <button className={rightTab === "settings" ? "active" : ""} onClick={() => setRightTab("settings")}>
-                  Settings
-                </button>
+            {selected && !selectedDef && selected.get("type") !== GLOBAL_TYPE && !isSitePart(selected) && (
+              <div className="panel-scroll global-panel">
+                <p>This element isn&apos;t a PageForge widget, so it has no settings. Delete it and add a widget from the panel instead.</p>
               </div>
-              <div className="panel-scroll" hidden={rightTab !== "style"}>
-                <p className="panel-hint">This is a classic element. Choose a device at the top, then style it. Styles apply per device.</p>
-                <div id="gpb-styles" />
-              </div>
-              <div className="panel-scroll" hidden={rightTab !== "settings"}>
-                <p className="panel-hint">Links, form → CRM settings, animations, hover effects and visibility.</p>
-                <div id="gpb-traits" />
-              </div>
-            </div>
+            )}
           </div>
 
           <a className="ed-panel-credit" href="https://digicks.com/" target="_blank" rel="noreferrer" title="PageForge is built by Digicks">

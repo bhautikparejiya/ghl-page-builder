@@ -109,6 +109,60 @@ CREATE TABLE IF NOT EXISTS site_settings (
   updated_at  BIGINT NOT NULL
 );
 
+-- API keys for the MCP server (AI tools acting on one sub-account). Only a hash of the key is stored.
+CREATE TABLE IF NOT EXISTS api_keys (
+  id           TEXT PRIMARY KEY,
+  location_id  TEXT NOT NULL,
+  company_id   TEXT,
+  name         TEXT NOT NULL,
+  token_hash   TEXT NOT NULL UNIQUE,
+  prefix       TEXT NOT NULL,
+  created_by   TEXT,
+  created_at   BIGINT NOT NULL,
+  last_used_at BIGINT
+);
+CREATE INDEX IF NOT EXISTS api_keys_location_idx ON api_keys (location_id);
+
+-- OAuth for the MCP server: AI apps register themselves, users approve them with a pairing code inside
+-- PageForge, and the app gets short-lived access tokens plus a rotating refresh token. Secrets are stored hashed.
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id     TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  redirect_uris JSONB NOT NULL,
+  created_at    BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS oauth_requests (
+  id             TEXT PRIMARY KEY,
+  browser_hash   TEXT NOT NULL,
+  client_id      TEXT NOT NULL,
+  redirect_uri   TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  state          TEXT,
+  scope          TEXT,
+  user_code      TEXT NOT NULL UNIQUE,
+  status         TEXT NOT NULL,
+  location_id    TEXT,
+  company_id     TEXT,
+  user_name      TEXT,
+  code_hash      TEXT UNIQUE,
+  created_at     BIGINT NOT NULL,
+  expires_at     BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+  id                 TEXT PRIMARY KEY,
+  client_id          TEXT NOT NULL,
+  location_id        TEXT NOT NULL,
+  company_id         TEXT,
+  user_name          TEXT,
+  access_hash        TEXT NOT NULL UNIQUE,
+  refresh_hash       TEXT NOT NULL UNIQUE,
+  access_expires_at  BIGINT NOT NULL,
+  refresh_expires_at BIGINT NOT NULL,
+  created_at         BIGINT NOT NULL,
+  last_used_at       BIGINT
+);
+CREATE INDEX IF NOT EXISTS oauth_tokens_location_idx ON oauth_tokens (location_id);
+
 -- Cached HighLevel data used when serving pages (location info, custom values).
 CREATE TABLE IF NOT EXISTS location_cache (
   location_id TEXT PRIMARY KEY,

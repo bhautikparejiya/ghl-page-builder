@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/session";
+import McpModal from "@/components/mcp/McpModal";
 import SiteSettingsModal from "@/components/site/SiteSettingsModal";
 import { DigicksCredit, EmbedInstructions, Modal, timeAgo } from "@/components/ui";
 
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [showCheck, setShowCheck] = useState(false);
   const [showSite, setShowSite] = useState(false);
+  const [showMcp, setShowMcp] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +125,9 @@ It goes back to draft: embedded copies stop showing it and the hosted link stops
               {connected ? "● CRM connected" : "● CRM not connected"}
             </button>
           )}
+          <button className="btn" onClick={() => setShowMcp(true)} title="Connect Claude, ChatGPT or other AI tools to build pages">
+            AI &amp; MCP
+          </button>
           <button className="btn" onClick={() => setShowSite(true)} title="Header, footer and custom code for every page">
             Site settings
           </button>
@@ -192,6 +197,8 @@ It goes back to draft: embedded copies stop showing it and the hosted link stops
       {showCheck && <ConnectionCheck onClose={() => setShowCheck(false)} />}
 
       {showSite && <SiteSettingsModal onClose={() => setShowSite(false)} onEditPart={(id) => router.push(`/app/editor/lib/${id}`)} />}
+
+      {showMcp && <McpModal onClose={() => setShowMcp(false)} />}
 
       <footer className="dash-foot">
         <DigicksCredit />
