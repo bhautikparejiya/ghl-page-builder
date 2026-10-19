@@ -24,6 +24,13 @@ export interface PageSettings {
   noindex?: boolean;
   /** "inline" renders embeds without Shadow DOM, so the funnel's fonts and SEO tools see the content as regular page HTML. */
   embedMode?: "shadow" | "inline";
+  /** Hide the site header / footer on this page. */
+  hideHeader?: boolean;
+  hideFooter?: boolean;
+  /** Custom code for this page only. */
+  customCss?: string;
+  headCode?: string;
+  bodyCode?: string;
 }
 
 export interface PageDoc {

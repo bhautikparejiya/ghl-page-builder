@@ -2,6 +2,7 @@ import type { Component, Editor } from "grapesjs";
 import { componentType, getWidget, type Settings, type WidgetDef } from "@/lib/widgets";
 import { advancedGroups } from "@/lib/widgets/advanced";
 import type { Control } from "@/lib/widgets/types";
+import { endIndex } from "./sitePart";
 import { collectWidgetCss, getSettings, SETTINGS_PROP, UID_PROP, widgetOf } from "./widgetComponents";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -106,7 +107,7 @@ export function insertWidget(editor: Editor, type: string, settings?: Settings):
 /** Inserts top-level content (a section blueprint or saved section) after `after`, or at the end of the page. */
 export function insertSection(editor: Editor, content: any, after?: Component | null): Component | null {
   const wrapper = editor.getWrapper()!;
-  const at = after ? after.index() + 1 : undefined;
+  const at = after ? after.index() + 1 : endIndex(editor);
   const c = firstAdded(wrapper.components().add(content, { at }));
   if (c) {
     editor.select(c);

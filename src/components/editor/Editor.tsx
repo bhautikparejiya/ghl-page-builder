@@ -18,7 +18,9 @@ import type { Device } from "@/lib/widgets/types";
 import { useSession } from "../session";
 import { EmbedInstructions, Modal } from "../ui";
 import { copyStyle, duplicate, firstAdded, insertSection, insertWidget, pasteStyle, serialize, snapshot, stripIds, topLevelOf } from "./actions";
+import SiteSettingsModal from "../site/SiteSettingsModal";
 import globalSection, { GLOBAL_TYPE, setGlobalDocs } from "./globalSection";
+import sitePart, { endIndex, isSitePart, showSiteParts, type SitePartPreview, stripSiteParts } from "./sitePart";
 import gpbPlugin from "./gpbPlugin";
 import type { ControlCtx } from "./panel/controls";
 import WidgetPanel from "./panel/WidgetPanel";
@@ -27,6 +29,7 @@ import BrandKitModal, { type KitInfo } from "./ui/BrandKitModal";
 import CommandPalette, { type PaletteCommand, SHORTCUTS } from "./ui/CommandPalette";
 import ContextMenu, { type ContextMenuState } from "./ui/ContextMenu";
 import InlineToolbar from "./ui/InlineToolbar";
+import Navigator from "./ui/Navigator";
 import { LibraryPanel, type SaveOptions, SaveToLibraryModal } from "./ui/Library";
 import PageSettingsModal, { AbStats } from "./ui/PageSettings";
 import widgetComponents, { collectWidgetCss, findWidgets, getSettings, isWidget, listPopups, uidOf, widgetOf } from "./widgetComponents";
@@ -34,7 +37,8 @@ import widgetComponents, { collectWidgetCss, findWidgets, getSettings, isWidget,
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 type SaveState = "saved" | "saving" | "dirty" | "error";
-type Modals = null | "kit" | "theme" | "settings" | "embed" | "history" | "shortcuts" | "palette";
+type Modals = null | "kit" | "theme" | "settings" | "embed" | "history" | "shortcuts" | "palette" | "site";
+type SitePreview = { header: SitePartPreview | null; footer: SitePartPreview | null; css: string };
 type Kind = "section" | "container" | "widget";
 
 interface Notice {
@@ -129,6 +133,9 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
 
   const [page, setPage] = useState<PageDoc | null>(null);
   const [libName, setLibName] = useState("");
+  /** Kind of library item being edited (section / page / header / footer). */
+  const [libKind, setLibKind] = useState("section");
+  const siteRef = useRef<SitePreview>({ header: null, footer: null, css: "" });
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [kitInfo, setKitInfo] = useState<KitInfo>({ kit: DEFAULT_KIT, source: "default", canEditAgency: false, agencyKit: null });
   const [hl, setHl] = useState<HighLevelData>(EMPTY_HL);
@@ -138,7 +145,10 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const [loadError, setLoadError] = useState("");
   const [save, setSave] = useState<SaveState>("saved");
   const [device, setDevice] = useState<Device>("desktop");
-  const [leftTab, setLeftTab] = useState<"blocks" | "layers" | "library">("blocks");
+  const [leftTab, setLeftTab] = useState<"blocks" | "library">("blocks");
+  /** The left panel shows either the widget library ("elements") or the selected element's settings ("edit"). */
+  const [panelView, setPanelView] = useState<"elements" | "edit">("elements");
+  const [navOpen, setNavOpen] = useState(false);
   const [rightTab, setRightTab] = useState<"style" | "settings">("style");
   const [modal, setModal] = useState<Modals>(null);
   const [selected, setSelected] = useState<Component | null>(null);
@@ -173,7 +183,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
   const buildDraft = useCallback(() => {
     const ed = editorRef.current!;
     const widgets = collectWidgetCss(ed);
-    return { projectData: ed.getProjectData(), html: stripBody(ed.getHtml()), css: (ed.getCss() ?? "") + widgets.css, fonts: widgets.fonts };
+    return { projectData: stripSiteParts(ed.getProjectData()), html: stripBody(ed.getHtml()), css: (ed.getCss() ?? "") + widgets.css, fonts: widgets.fonts };
   }, []);
 
   const saveNow = useCallback(async () => {
@@ -246,6 +256,21 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     [],
   );
 
+  /** Shows the site header/footer around the page and applies site + page custom CSS on the canvas. */
+  function applySite(ed: GEditor, settings: PageDoc["settings"]) {
+    const site = siteRef.current;
+    showSiteParts(ed, { header: settings.hideHeader ? null : site.header, footer: settings.hideFooter ? null : site.footer });
+    setCanvasHead(ed, "pf-custom-css", "style", (site.css || "") + (settings.customCss || ""));
+  }
+
+  const refreshSite = async (settings?: PageDoc["settings"]) => {
+    const ed = editorRef.current;
+    if (!ed || mode.kind !== "page") return;
+    siteRef.current = await api<SitePreview>(`/api/site/preview?pageId=${encodeURIComponent(mode.id)}`).catch(() => siteRef.current);
+    const s = settings ?? page?.settings;
+    if (s) applySite(ed, s);
+  };
+
   function renderRecent(ed: GEditor) {
     const box = document.getElementById("gpb-recent");
     if (!box) return;
@@ -284,7 +309,8 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           const { page: pg } = await api<{ page: PageDoc }>(`/api/pages/${mode.id}`);
           start = { name: pg.name, theme: pg.theme, projectData: pg.draft.projectData, html: pg.draft.html, css: pg.draft.css, page: pg };
         } else {
-          const { item } = await api<{ item: { name: string; doc: { components: unknown } } }>(`/api/library/${mode.id}`);
+          const { item } = await api<{ item: { name: string; kind: string; doc: { components: unknown } } }>(`/api/library/${mode.id}`);
+          setLibKind(item.kind);
           start = {
             name: item.name,
             projectData: { pages: [{ component: { type: "wrapper", components: item.doc.components } }], styles: [] },
@@ -305,6 +331,11 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         api<KitInfo>("/api/brand-kit").catch(() => null),
         api<Omit<HighLevelData, "workflows">>("/api/highlevel").catch(() => null),
         loadLibrary(),
+        mode.kind === "page"
+          ? api<SitePreview>(`/api/site/preview?pageId=${encodeURIComponent(mode.id)}`)
+              .then((r) => (siteRef.current = r))
+              .catch(() => null)
+          : null,
       ]);
       if (cancelled) return;
 
@@ -366,6 +397,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           (ed: GEditor) => formsPlugin(ed, { blocks: [] }),
           (ed: GEditor) => widgetComponents(ed, { onInlineEdit: setInline }),
           globalSection,
+          sitePart,
           (ed: GEditor) => gpbPlugin(ed, { getWorkflows: () => hlRef.current.workflows.map((w) => ({ id: w.value, name: w.label })) }),
           (ed: GEditor) => customCodePlugin(ed, { blockCustomCode: false as any }),
         ],
@@ -376,6 +408,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       editor.on("load", () => {
         const ed = editor!;
         setCanvasHead(ed, "gpb-theme", "style", kitCss(startKit, "body.gpb-root"));
+        if (start.page) applySite(ed, start.page.settings);
         ed.runCommand("core:component-outline");
         ed.BlockManager.getCategories().forEach((c: any) => c.set("open", true));
         renderRecent(ed);
@@ -401,6 +434,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       editor.on("component:toggled", () => {
         const sel = editor!.getSelected() ?? null;
         setSelected(sel);
+        setPanelView(sel ? "edit" : "elements");
         rootRef.current?.setAttribute("data-sel-kind", kindOf(sel) ?? "");
       });
       editor.on("component:hover", (c?: Component) => rootRef.current?.setAttribute("data-hover-kind", kindOf(c) ?? ""));
@@ -432,6 +466,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       keymap("pf:copy-style", "alt+shift+c, ⌥+shift+c", () => copyStyle(editor!.getSelected()) && flash("Style copied"));
       keymap("pf:paste-style", "alt+shift+v, ⌥+shift+v", () => pasteStyle(editor!.getSelected()));
       keymap("pf:shortcuts", "shift+/", () => setModal("shortcuts"));
+      keymap("pf:navigator", "⌘+i, ctrl+i", () => setNavOpen((o) => !o));
     })();
 
     const onResize = () => editorRef.current && fitCanvas(editorRef.current);
@@ -656,7 +691,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     const added = ed
       .getWrapper()!
       .components()
-      .add(stripIds(r.item.doc.components) as any[], { at: after ? after.index() + 1 : undefined }) as unknown as Component[];
+      .add(stripIds(r.item.doc.components) as any[], { at: after ? after.index() + 1 : endIndex(ed) }) as unknown as Component[];
     if (added[0]) {
       ed.select(added[0]);
       setTimeout(() => added[0].getEl()?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -759,13 +794,17 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
     DEVICES.forEach((d) => act(`dev-${d}`, `Switch to ${d}`, () => switchDevice(d), "", "device responsive"));
     act("kit", "Brand kit (colors, fonts, logo)", () => setModal("kit"), "", "theme colors fonts");
     if (isPage) {
-      act("settings", "Page settings & domains", () => setModal("settings"), "", "seo og image domain");
+      act("settings", "Page settings & domains", () => setModal("settings"), "", "seo og image domain custom code css js");
+      act("site", "Site settings: header, footer, custom code", () => setModal("site"), "", "theme builder global header footer css js");
       act("history", "Revision history", () => setModal("history"), "", "restore");
       act("embed", "Embed in HighLevel", () => setModal("embed"), "", "snippet code");
       act("save-page", "Save this page as a template", () => setSaveLib({ kind: "page" }));
     }
-    act("library", "Open library", () => setLeftTab("library"));
-    act("layers", "Show layers", () => setLeftTab("layers"));
+    act("library", "Open library", () => {
+      setPanelView("elements");
+      setLeftTab("library");
+    });
+    act("layers", "Navigator (page structure)", () => setNavOpen(true), "Ctrl+I", "layers tree structure");
     act("shortcuts", "Keyboard shortcuts", () => setModal("shortcuts"), "?");
     ed.getWrapper()?.onAll((c: Component) => {
       const def = widgetOf(c);
@@ -833,7 +872,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
               aria-label="Name"
             />
           )}
-          {!isPage && <span className="pill pill-global">Global section</span>}
+          {!isPage && <span className="pill pill-global">{libKind === "header" ? "Site header" : libKind === "footer" ? "Site footer" : "Global section"}</span>}
           {isPage && page && (
             <span
               className={`pub-status ${!publishedAt ? "is-draft" : unpublished ? "is-changed" : "is-live"}`}
@@ -864,6 +903,14 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           <button className="icon-btn" title="Redo (Ctrl+Shift+Z)" onClick={() => editorRef.current?.UndoManager.redo()}>
             ↷
           </button>
+          <button
+            className={`icon-btn${navOpen ? " is-on" : ""}`}
+            title="Navigator: page structure (Ctrl+I)"
+            aria-pressed={navOpen}
+            onClick={() => setNavOpen(!navOpen)}
+          >
+            ☰
+          </button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" onClick={() => setModal("shortcuts")}>
             ⌨
           </button>
@@ -875,7 +922,10 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           </button>
           {isPage ? (
             <>
-              <button className="btn btn-sm" onClick={() => setModal("settings")}>
+              <button className="btn btn-sm" onClick={() => setModal("site")} title="Header, footer and custom code for every page">
+                Site
+              </button>
+              <button className="btn btn-sm" onClick={() => setModal("settings")} title="SEO, custom code and options for this page">
                 Settings
               </button>
               <button className="btn btn-sm" onClick={() => setModal("history")}>
@@ -940,68 +990,130 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
       )}
       {!isPage && (
         <div className="notice ed-notice">
-          You&apos;re editing a global section. Click <b>Save &amp; update pages</b> to push your changes to every page that uses it.
+          {libKind === "header" || libKind === "footer" ? (
+            <>
+              You&apos;re editing a site {libKind}. Click <b>Save &amp; update pages</b> to update every page that shows it. Choose which pages show
+              it in <b>Site settings</b>.
+            </>
+          ) : (
+            <>
+              You&apos;re editing a global section. Click <b>Save &amp; update pages</b> to push your changes to every page that uses it.
+            </>
+          )}
         </div>
       )}
 
       <div className="ed-main">
-        <aside className="ed-left">
-          <div className="tabs">
-            <button className={leftTab === "blocks" ? "active" : ""} onClick={() => setLeftTab("blocks")}>
-              Widgets
-            </button>
-            <button className={leftTab === "layers" ? "active" : ""} onClick={() => setLeftTab("layers")}>
-              Layers
-            </button>
-            <button className={leftTab === "library" ? "active" : ""} onClick={() => setLeftTab("library")}>
-              Library
-            </button>
+        <aside className="ed-panel">
+          <div className="ed-panel-head">
+            {panelView === "edit" && selected ? (
+              <>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Back to widgets"
+                  aria-label="Back to widgets"
+                  onClick={() => setPanelView("elements")}
+                >
+                  ⊞
+                </button>
+                <b>
+                  {isSitePart(selected)
+                    ? `Site ${selected.get("pfPart")}`
+                    : `Edit ${selectedDef?.label ?? (selected.get("type") === GLOBAL_TYPE ? "global section" : selected.getName())}`}
+                </b>
+                <button type="button" className="icon-btn" title="Deselect" aria-label="Deselect" onClick={() => editorRef.current?.select(undefined as never)}>
+                  ×
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="ed-panel-mark" aria-hidden="true">
+                  ✦
+                </span>
+                <b>{leftTab === "library" ? "Library" : "Widgets"}</b>
+                {selected && (
+                  <button type="button" className="btn btn-sm" onClick={() => setPanelView("edit")} title="Back to the selected element's settings">
+                    Edit selection
+                  </button>
+                )}
+              </>
+            )}
           </div>
-          <div className="panel-scroll" hidden={leftTab !== "blocks"}>
-            <div className="block-search">
-              <input className="wp-input" type="search" placeholder="Search widgets…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search widgets" />
-            </div>
-            <div className="recent-wrap" hidden={!!search}>
-              <div className="recent-title">Recently used</div>
-              <div id="gpb-recent" />
-            </div>
-            <div id="gpb-blocks" />
-          </div>
-          <div id="gpb-layers" className="panel-scroll" hidden={leftTab !== "layers"} />
-          <div className="panel-scroll" hidden={leftTab !== "library"}>
-            <LibraryPanel
-              items={library}
-              canShare={canShare}
-              loading={libraryLoading}
-              onInsert={(it) => insertLibraryItem(it, it.kind === "page" ? null : topLevelOf(editorRef.current?.getSelected()))}
-              onEdit={(it) => openGlobal(it.id)}
-              onRename={async (it, name) => {
-                await api(`/api/library/${it.id}`, { method: "PUT", body: { name } });
-                loadLibrary();
-              }}
-              onDelete={async (it) => {
-                const warn = it.isGlobal ? " Pages that use this global section will no longer show it." : "";
-                if (!confirm(`Delete "${it.name}" from the library?${warn}`)) return;
-                await api(`/api/library/${it.id}`, { method: "DELETE" });
-                loadLibrary();
-              }}
-              onSavePage={() => setSaveLib({ kind: "page" })}
-            />
-          </div>
-        </aside>
 
-        <main className="ed-canvas">
-          <div id="gjs" />
-          {ed && !preview && <AddSectionButton editor={ed} onOpen={(after) => setPicker({ after })} />}
-          {ed && inline && <InlineToolbar editor={ed} el={inline.el} colors={kit.colors} rich={!widgetOf(inline.component)?.inline?.plain} />}
-        </main>
-
-        <aside className="ed-right">
-          {selected && selected.get("type") === GLOBAL_TYPE && (
-            <div className="wp">
-              <div className="wp-title">
-                <strong>{selected.getName()}</strong>
+          {/* Widget library (kept mounted so GrapesJS can render into it) */}
+          <div className="ed-panel-view" hidden={panelView !== "elements"}>
+            <div className="tabs">
+              <button className={leftTab === "blocks" ? "active" : ""} onClick={() => setLeftTab("blocks")}>
+                Widgets
+              </button>
+              <button className={leftTab === "library" ? "active" : ""} onClick={() => setLeftTab("library")}>
+                Library
+              </button>
+            </div>
+            <div className="panel-scroll" hidden={leftTab !== "blocks"}>
+              <div className="block-search">
+                <input className="wp-input" type="search" placeholder="Search widgets…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search widgets" />
               </div>
+              <div className="recent-wrap" hidden={!!search}>
+                <div className="recent-title">Recently used</div>
+                <div id="gpb-recent" />
+              </div>
+              <div id="gpb-blocks" />
+            </div>
+            <div className="panel-scroll" hidden={leftTab !== "library"}>
+              <LibraryPanel
+                items={library}
+                canShare={canShare}
+                loading={libraryLoading}
+                onInsert={(it) => insertLibraryItem(it, it.kind === "page" ? null : topLevelOf(editorRef.current?.getSelected()))}
+                onEdit={(it) => openGlobal(it.id)}
+                onRename={async (it, name) => {
+                  await api(`/api/library/${it.id}`, { method: "PUT", body: { name } });
+                  loadLibrary();
+                }}
+                onDelete={async (it) => {
+                  const warn = it.isGlobal ? " Pages that use this global section will no longer show it." : "";
+                  if (!confirm(`Delete "${it.name}" from the library?${warn}`)) return;
+                  await api(`/api/library/${it.id}`, { method: "DELETE" });
+                  loadLibrary();
+                }}
+                onSavePage={() => setSaveLib({ kind: "page" })}
+              />
+            </div>
+          </div>
+
+          {/* Settings of the selected element */}
+          <div className="ed-panel-view" hidden={panelView !== "edit" || !selected}>
+            {selected && isSitePart(selected) && page && (
+              <div className="panel-scroll global-panel">
+                <p>
+                  This is your <b>site {selected.get("pfPart")}</b>. It appears on every page it applies to, and isn&apos;t part of this page&apos;s design.
+                </p>
+                <button className="btn btn-primary" onClick={() => openGlobal(String(selected.get("pfPartId")))}>
+                  Edit {selected.get("pfPart")}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const key = selected.get("pfPart") === "header" ? "hideHeader" : "hideFooter";
+                    const settings = { ...page.settings, [key]: true };
+                    await api(`/api/pages/${mode.id}`, { method: "PUT", body: { settings } });
+                    setPage({ ...page, settings });
+                    editorRef.current?.select(undefined as never);
+                    applySite(editorRef.current!, settings);
+                    setUnpublished(true);
+                    flash(`Site ${selected.get("pfPart")} hidden on this page`);
+                  }}
+                >
+                  Hide it on this page
+                </button>
+                <button className="btn" onClick={() => setModal("site")}>
+                  Site settings: choose pages
+                </button>
+              </div>
+            )}
+            {selected && selected.get("type") === GLOBAL_TYPE && (
               <div className="panel-scroll global-panel">
                 <p>
                   This is a <b>global section</b>. It looks the same on every page that uses it, and changes go live everywhere without republishing.
@@ -1013,37 +1125,49 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
                   Detach: make an editable copy for this page only
                 </button>
               </div>
-            </div>
-          )}
-          {selected && selectedDef && ed && (
-            <WidgetPanel
-              key={uidOf(selected)}
-              editor={ed}
-              component={selected}
-              ctx={ctx}
-              footer={isPage && selSettings?._abTest ? <AbStats pageId={mode.id} test={String(selSettings._abTest)} /> : null}
-            />
-          )}
-          <div className="classic-panel" hidden={!!selectedDef || selected?.get("type") === GLOBAL_TYPE}>
-            {!selected && <p className="panel-hint">Select an element on the page to edit it, or drag a widget from the left.</p>}
-            <div className="tabs" hidden={!selected}>
-              <button className={rightTab === "style" ? "active" : ""} onClick={() => setRightTab("style")}>
-                Style
-              </button>
-              <button className={rightTab === "settings" ? "active" : ""} onClick={() => setRightTab("settings")}>
-                Settings
-              </button>
-            </div>
-            <div className="panel-scroll" hidden={!selected || rightTab !== "style"}>
-              <p className="panel-hint">This is a classic element. Choose a device at the top, then style it. Styles apply per device.</p>
-              <div id="gpb-styles" />
-            </div>
-            <div className="panel-scroll" hidden={!selected || rightTab !== "settings"}>
-              <p className="panel-hint">Links, form → CRM settings, animations, hover effects and visibility.</p>
-              <div id="gpb-traits" />
+            )}
+            {selected && selectedDef && ed && (
+              <WidgetPanel
+                key={uidOf(selected)}
+                editor={ed}
+                component={selected}
+                ctx={ctx}
+                hideTitle
+                footer={isPage && selSettings?._abTest ? <AbStats pageId={mode.id} test={String(selSettings._abTest)} /> : null}
+              />
+            )}
+            <div className="classic-panel" hidden={!selected || !!selectedDef || selected?.get("type") === GLOBAL_TYPE || isSitePart(selected)}>
+              <div className="tabs">
+                <button className={rightTab === "style" ? "active" : ""} onClick={() => setRightTab("style")}>
+                  Style
+                </button>
+                <button className={rightTab === "settings" ? "active" : ""} onClick={() => setRightTab("settings")}>
+                  Settings
+                </button>
+              </div>
+              <div className="panel-scroll" hidden={rightTab !== "style"}>
+                <p className="panel-hint">This is a classic element. Choose a device at the top, then style it. Styles apply per device.</p>
+                <div id="gpb-styles" />
+              </div>
+              <div className="panel-scroll" hidden={rightTab !== "settings"}>
+                <p className="panel-hint">Links, form → CRM settings, animations, hover effects and visibility.</p>
+                <div id="gpb-traits" />
+              </div>
             </div>
           </div>
+
+          <a className="ed-panel-credit" href="https://digicks.com/" target="_blank" rel="noreferrer" title="PageForge is built by Digicks">
+            <span>Built by</span>
+            <img src="/brand/digicks-logo-light.svg" alt="Digicks" />
+          </a>
         </aside>
+
+        <main className="ed-canvas">
+          <div id="gjs" />
+          {ed && !preview && <AddSectionButton editor={ed} onOpen={(after) => setPicker({ after })} />}
+          {ed && inline && <InlineToolbar editor={ed} el={inline.el} colors={kit.colors} rich={!widgetOf(inline.component)?.inline?.plain} />}
+          <Navigator open={navOpen && !preview} onClose={() => setNavOpen(false)} />
+        </main>
       </div>
 
       {toast && (
@@ -1089,7 +1213,7 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           state={ctxMenu}
           onClose={() => setCtxMenu(null)}
           onSaveToLibrary={(c) => setSaveLib({ kind: "section", component: c })}
-          onShowLayers={() => setLeftTab("layers")}
+          onShowLayers={() => setNavOpen(true)}
           onEditGlobal={openGlobal}
           onDetachGlobal={detachGlobal}
           flash={flash}
@@ -1203,6 +1327,17 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
         </Modal>
       )}
 
+      {modal === "site" && (
+        <SiteSettingsModal
+          onClose={() => setModal(null)}
+          onEditPart={async (id) => {
+            setModal(null);
+            await openGlobal(id);
+          }}
+          onSaved={() => refreshSite()}
+        />
+      )}
+
       {modal === "settings" && page && (
         <PageSettingsModal
           page={page}
@@ -1210,6 +1345,8 @@ export default function PageEditor({ mode }: { mode: EditorMode }) {
           pickImage={pickImage}
           onSaved={(settings: PageSettings) => {
             setPage({ ...page, settings });
+            if (editorRef.current) applySite(editorRef.current, settings);
+            setUnpublished(true);
             flash("Settings saved");
           }}
           onClose={() => setModal(null)}

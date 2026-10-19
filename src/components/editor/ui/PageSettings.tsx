@@ -65,6 +65,31 @@ export default function PageSettingsModal({ page, publishedAt, pickImage, onSave
           <span>Hide from search engines (noindex)</span>
         </label>
 
+        <h4 className="kit-h">Site header &amp; footer</h4>
+        <label className="check">
+          <input type="checkbox" checked={!!s.hideHeader} onChange={(e) => setS({ ...s, hideHeader: e.target.checked })} />
+          <span>Hide the site header on this page</span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={!!s.hideFooter} onChange={(e) => setS({ ...s, hideFooter: e.target.checked })} />
+          <span>Hide the site footer on this page</span>
+        </label>
+
+        <h4 className="kit-h">Custom code for this page</h4>
+        <p className="muted">Added after the site-wide code from Site settings. Code runs on the live page only, not in the editor (CSS also previews in the editor).</p>
+        <label className="field">
+          <span>Page CSS</span>
+          <textarea className="input code-area" rows={5} spellCheck={false} placeholder=".gpb-root h1 { … }" value={s.customCss ?? ""} onChange={(e) => setS({ ...s, customCss: e.target.value })} />
+        </label>
+        <label className="field">
+          <span>Head code</span>
+          <textarea className="input code-area" rows={4} spellCheck={false} placeholder="<meta …> / <script>…</script>" value={s.headCode ?? ""} onChange={(e) => setS({ ...s, headCode: e.target.value })} />
+        </label>
+        <label className="field">
+          <span>Body code (before &lt;/body&gt;)</span>
+          <textarea className="input code-area" rows={4} spellCheck={false} placeholder="<script>…</script>" value={s.bodyCode ?? ""} onChange={(e) => setS({ ...s, bodyCode: e.target.value })} />
+        </label>
+
         <h4 className="kit-h">Embedding in HighLevel</h4>
         <label className="field">
           <span>Embed mode</span>

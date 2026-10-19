@@ -43,12 +43,14 @@ ${composed.fontUrl ? `<link rel="stylesheet" href="${composed.fontUrl}">` : ""}
 ${moduleCss}
 <style>body{margin:0}${composed.css}</style>
 ${jsonLd}
+${composed.headCode}
 </head>
 <body>
 <div class="gpb-root">${composed.html}</div>
 <script src="${app}/runtime/core.js"></script>
 ${moduleJs}
 <script>GPB.init(document,{api:${JSON.stringify(app)},pageId:${JSON.stringify(page.id)}});</script>
+${composed.bodyCode}
 </body>
 </html>`;
 

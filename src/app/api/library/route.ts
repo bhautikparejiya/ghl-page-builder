@@ -28,7 +28,7 @@ export const POST = handle(async (req: Request) => {
     doc?: LibraryDoc;
     thumbnail?: string;
   };
-  if (!body.doc || (body.kind !== "section" && body.kind !== "page")) throw new HttpError(400, "Missing content");
+  if (!body.doc || !["section", "page", "header", "footer"].includes(String(body.kind))) throw new HttpError(400, "Missing content");
   if (JSON.stringify(body.doc).length > MAX_DOC) throw new HttpError(413, "This content is too large to save.");
   const share = !!body.shareWithAgency;
   if (share && (s.userType !== "agency" || !s.companyId)) throw new HttpError(403, "Only agency users can share with all sub-accounts.");
@@ -36,7 +36,7 @@ export const POST = handle(async (req: Request) => {
   const item = await createLibraryItem({
     ownerType: share ? "company" : "location",
     ownerId: share ? s.companyId! : s.locationId,
-    kind: body.kind,
+    kind: body.kind as LibraryKind,
     name: String(body.name || "Untitled").slice(0, 120),
     category: String(body.category || "").slice(0, 60),
     isGlobal: body.kind === "section" && !!body.isGlobal,

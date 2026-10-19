@@ -98,3 +98,13 @@ export function timeAgo(ts: number | null | undefined) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return new Date(ts).toLocaleDateString();
 }
+
+/** "Built by Digicks" credit shown across the app (never on customers' live pages). */
+export function DigicksCredit({ className = "" }: { className?: string }) {
+  return (
+    <a className={`dk-credit ${className}`} href="https://digicks.com/" target="_blank" rel="noreferrer" title="PageForge is designed and built by Digicks">
+      <span>Built by</span>
+      <img src="/brand/digicks-logo-light.svg" alt="Digicks" width={70} height={21} />
+    </a>
+  );
+}

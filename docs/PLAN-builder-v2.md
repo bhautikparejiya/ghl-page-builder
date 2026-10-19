@@ -6,6 +6,15 @@ HighLevel-native builder can do.
 
 ---
 
+## Update 2026-10-19: site builder and editor layout
+
+- **Editor layout:** a single left panel switches between the widget library and the selected element's settings; the right sidebar is gone;
+  the Navigator is a floating, draggable window (Ctrl+I). Same workflow as other visual builders, with PageForge's own styling.
+- **Site builder:** header/footer templates (library kinds `header` / `footer`) with display rules (all / only / except pages) stored in
+  `site_settings`; per-page hide toggles; site-wide and per-page custom CSS, head and body code. Applied when pages are served
+  (`src/lib/compose.ts`), previewed read-only on the editor canvas (`src/components/editor/sitePart.ts`).
+- **Branding:** "Built by Digicks" credit in the editor panel, dashboard, landing and install pages (not on customers' live pages).
+
 ## Status (updated 2026-10-08)
 
 All phases (0–6) are implemented on branch `feature/builder-v2` and tested in a local browser, except the items marked

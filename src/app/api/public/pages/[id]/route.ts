@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   const page = await getPage(id);
-  const composed = page ? await composePublished(page) : null;
+  const composed = page ? await composePublished(page, "embed") : null;
   if (!page?.published || !composed) {
     return NextResponse.json({ error: "Page not found or not published" }, { status: 404, headers: CORS_HEADERS });
   }
@@ -17,7 +17,8 @@ export async function GET(_req: Request, { params }: Ctx) {
     {
       id: page.id,
       version: page.published.version,
-      html: composed.html,
+      // Custom code runs inside the embed (the loader re-creates <script> tags so they execute).
+      html: composed.headCode + composed.html + composed.bodyCode,
       css: composed.css,
       fontUrl: composed.fontUrl,
       modules: composed.modules,

@@ -1,3 +1,5 @@
+import { DigicksCredit } from "@/components/ui";
+
 export default async function Installed({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { ok, error, type } = await searchParams;
   return (
@@ -19,6 +21,7 @@ export default async function Installed({ searchParams }: { searchParams: Promis
           <p className="muted">Please try installing again from the HighLevel Marketplace.</p>
         </>
       )}
+      <DigicksCredit className="dk-credit--page" />
     </div>
   );
 }

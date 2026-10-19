@@ -9,12 +9,14 @@ import { ControlField, type ControlCtx } from "./controls";
 type Tab = "content" | "design" | "advanced";
 
 /** Settings panel for a selected schema widget. Edits write the component's settings, which re-renders it. */
-export default function WidgetPanel({ editor, component, ctx, footer }: {
+export default function WidgetPanel({ editor, component, ctx, footer, hideTitle }: {
   editor: Editor;
   component: Component;
   ctx: ControlCtx;
   /** Extra panel content (e.g. A/B test results). */
   footer?: ReactNode;
+  /** The surrounding panel already shows the widget name. */
+  hideTitle?: boolean;
 }) {
   const def = widgetOf(component);
   const [tab, setTab] = useState<Tab>("content");
@@ -50,7 +52,7 @@ export default function WidgetPanel({ editor, component, ctx, footer }: {
 
   return (
     <div className="wp">
-      <div className="wp-title">
+      <div className="wp-title" hidden={hideTitle}>
         <span dangerouslySetInnerHTML={{ __html: def.icon.replace(/width="\d+" height="\d+"/, 'width="18" height="18"') }} />
         <strong>{def.label}</strong>
       </div>

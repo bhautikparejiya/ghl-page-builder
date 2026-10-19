@@ -1,7 +1,8 @@
 import { num, query } from "./db";
 import { newId } from "./pages";
 
-export type LibraryKind = "section" | "page";
+/** "header" / "footer" are site parts: templates shown around every page, assigned in Site settings. */
+export type LibraryKind = "section" | "page" | "header" | "footer";
 
 export interface LibraryDoc {
   /** Editor component JSON (what gets inserted). */
@@ -69,6 +70,13 @@ export async function listLibrary(locationId: string, companyId?: string | null)
 export async function getLibraryItem(id: string): Promise<LibraryItem | null> {
   const rows = await query<Row>("SELECT * FROM library_items WHERE id = $1", [id]);
   return rows[0] ? fromRow(rows[0]) : null;
+}
+
+/** Rendered HTML/CSS of any library items by id (site headers and footers). */
+export async function getLibraryDocs(ids: string[]): Promise<Map<string, LibraryDoc & { name: string }>> {
+  if (!ids.length) return new Map();
+  const rows = await query<{ id: string; name: string; doc: LibraryDoc }>("SELECT id, name, doc FROM library_items WHERE id = ANY($1)", [ids]);
+  return new Map(rows.map((r) => [r.id, { ...r.doc, name: r.name }]));
 }
 
 /** Global sections by id (for composing live pages). */

@@ -377,6 +377,99 @@ export const SECTIONS: Record<string, { label: string; icon: string; nodes: Node
 
 const pick = (...keys: (keyof typeof SECTIONS)[]) => keys.flatMap((k) => SECTIONS[k].nodes);
 
+/* ── Site parts: starter headers and footers ── */
+
+const smallText = (html: string, color = "#94a3b8", align = "left") =>
+  h("text", { html: `<p>${html}</p>`, color, align: { desktop: align }, typography: { size: { desktop: 14 } } });
+
+const footerColumn = (title: string, items: { text: string; url?: string; icon?: string }[]) =>
+  col(
+    [
+      heading(title, "p", "left", { color: "#ffffff", typography: { size: { desktop: 15 }, weight: "700" } }),
+      h("icon-list", {
+        icon: "chevron-right",
+        iconColor: "#64748b",
+        textColor: "#cbd5e1",
+        gap: { desktop: 8 },
+        typography: { size: { desktop: 14 } },
+        items: items.map((i) => ({ text: i.text, ...(i.icon ? { icon: i.icon } : {}), ...(i.url ? { link: { url: i.url } } : {}) })),
+      }),
+    ],
+    { gap: { desktop: 12 } },
+  );
+
+export const SITE_PARTS: Record<"header" | "footer", { id: string; label: string; description: string; nodes: Node[] }[]> = {
+  header: [
+    { id: "simple", label: "Simple navbar", description: "Logo, menu and a call-to-action button. Sticky on scroll.", nodes: [h("navbar")] },
+    {
+      id: "topbar",
+      label: "Navbar with contact bar",
+      description: "A slim bar with your phone and email above the navbar.",
+      nodes: [
+        section(
+          [
+            row(
+              [
+                h("icon-list", {
+                  layout: "inline",
+                  iconColor: "global:secondary",
+                  textColor: "#e2e8f0",
+                  typography: { size: { desktop: 13 } },
+                  items: [
+                    { icon: "phone", text: "{{location.phone}}" },
+                    { icon: "mail", text: "{{location.email}}" },
+                  ],
+                }),
+                h("social-icons", { shape: "", colors: "custom", iconColor: "#e2e8f0", size: 14, align: { desktop: "right", mobile: "left" } }),
+              ],
+              { justify: { desktop: "space-between" }, gap: { desktop: 16, mobile: 8 } },
+            ),
+          ],
+          { ...DARK, padding: { desktop: { top: 8, bottom: 8, left: 20, right: 20 } }, _hideMobile: true },
+        ),
+        h("navbar"),
+      ],
+    },
+    { id: "blank", label: "Blank", description: "Start from an empty section.", nodes: [section([])] },
+  ],
+  footer: [
+    { id: "simple", label: "Simple footer", description: "Brand, copyright and social icons.", nodes: SECTIONS.footer.nodes },
+    {
+      id: "columns",
+      label: "Footer with columns",
+      description: "About, links and contact columns, with a copyright row.",
+      nodes: [
+        section(
+          [
+            grid(
+              [4, 2, 1],
+              [
+                col([
+                  heading('Brand<span style="color:var(--gpb-primary)">.</span>', "p", "left", { color: "#ffffff", typography: { size: { desktop: 22 }, weight: "800", font: "heading" } }),
+                  smallText("We help growing businesses turn visitors into customers."),
+                  h("social-icons", { shape: "circle" }),
+                ]),
+                footerColumn("Company", [{ text: "About", url: "#" }, { text: "Services", url: "#" }, { text: "Careers", url: "#" }]),
+                footerColumn("Resources", [{ text: "Blog", url: "#" }, { text: "FAQ", url: "#faq" }, { text: "Privacy policy", url: "#" }]),
+                footerColumn("Contact", [
+                  { text: "{{location.phone}}", icon: "phone" },
+                  { text: "{{location.email}}", icon: "mail" },
+                  { text: "{{location.address}}", icon: "map-pin" },
+                ]),
+              ],
+              { gap: { desktop: 40, mobile: 28 } },
+            ),
+            h("divider", { color: "#1e293b", gap: { desktop: 8 } }),
+            smallText("© 2026 {{location.name}}. All rights reserved.", "#64748b", "center"),
+          ],
+          { ...DARK, tag: "footer", gap: { desktop: 28 }, padding: { desktop: { top: 64, bottom: 32, left: 20, right: 20 } } },
+        ),
+      ],
+    },
+    { id: "blank", label: "Blank", description: "Start from an empty section.", nodes: [section([], { tag: "footer" })] },
+  ],
+};
+
 /* ── Page templates ── */
 
 export interface Blueprint {

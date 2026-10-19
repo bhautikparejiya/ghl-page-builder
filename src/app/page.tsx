@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DigicksCredit } from "@/components/ui";
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
       <Link className="btn btn-primary" href="/app">
         Open builder
       </Link>
+      <DigicksCredit className="dk-credit--page" />
     </div>
   );
 }

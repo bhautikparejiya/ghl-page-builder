@@ -7,6 +7,8 @@ funnel or website step with a one-time snippet. Edits after that go live automat
 ## Features
 
 **Editing**
+- **One left panel:** pick widgets there, and when you select something on the page the same panel switches to its settings
+  (⊞ goes back to the widgets). The **Navigator** (page structure) is a floating window you can drag anywhere (Ctrl+I).
 - **Widget editor:** select anything on the page and edit it in a Content / Design / Advanced panel generated for that widget.
   Every size, spacing and alignment setting can differ per device (desktop / tablet / mobile).
 - **Layout:** sections and flex/grid containers (columns, cards, button groups) with drop rules, so layouts can't break.
@@ -20,6 +22,12 @@ funnel or website step with a one-time snippet. Edits after that go live automat
 - **20 ready-made sections and 6 templates**, built from the same widgets, with live previews in your brand colors.
 - **Advanced options on every widget:** spacing, entrance animation, hover effect, scroll effects (parallax/fade/scale), sticky,
   hide per device, display conditions (date range, URL parameter, new/returning visitor), "on click open popup", custom CSS.
+
+**Site builder**
+- **Site header & footer:** create them from starters (simple navbar, navbar with contact bar, simple or column footer), edit them like any page,
+  and choose where they show: all pages, only selected pages, or all pages except selected. Each page can hide them. Changes apply to live
+  pages without republishing. They show on hosted pages and custom domains, and optionally on embeds.
+- **Custom code:** site-wide CSS, head code and body code (Site settings), plus per-page CSS, head and body code (Page settings).
 
 **Design system and reuse**
 - **Brand kit** per sub-account (and an agency default for all sub-accounts): unlimited named colors, fonts, text styles for H1–H6 and body,

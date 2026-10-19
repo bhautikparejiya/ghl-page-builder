@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/session";
-import { EmbedInstructions, Modal, timeAgo } from "@/components/ui";
+import SiteSettingsModal from "@/components/site/SiteSettingsModal";
+import { DigicksCredit, EmbedInstructions, Modal, timeAgo } from "@/components/ui";
 
 interface PageRow {
   id: string;
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [showCheck, setShowCheck] = useState(false);
+  const [showSite, setShowSite] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -121,6 +123,9 @@ It goes back to draft: embedded copies stop showing it and the hosted link stops
               {connected ? "● CRM connected" : "● CRM not connected"}
             </button>
           )}
+          <button className="btn" onClick={() => setShowSite(true)} title="Header, footer and custom code for every page">
+            Site settings
+          </button>
           <button className="btn btn-primary" onClick={() => setShowNew(true)}>
             + New page
           </button>
@@ -185,6 +190,12 @@ It goes back to draft: embedded copies stop showing it and the hosted link stops
       {showNew && <TemplatePicker templates={templates} busy={busy} onCreate={create} onClose={() => setShowNew(false)} />}
 
       {showCheck && <ConnectionCheck onClose={() => setShowCheck(false)} />}
+
+      {showSite && <SiteSettingsModal onClose={() => setShowSite(false)} onEditPart={(id) => router.push(`/app/editor/lib/${id}`)} />}
+
+      <footer className="dash-foot">
+        <DigicksCredit />
+      </footer>
 
       {embedFor && (
         <Modal title={`Embed "${embedFor.name}"`} onClose={() => setEmbedFor(null)} width={640}>

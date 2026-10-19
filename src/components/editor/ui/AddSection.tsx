@@ -6,6 +6,7 @@ import { SECTIONS, toEditorHtml } from "@/lib/blueprints";
 import { componentType } from "@/lib/widgets";
 import { iconSvg } from "@/lib/widgets/render";
 import { topLevelOf } from "../actions";
+import { isSitePart } from "../sitePart";
 import { SETTINGS_PROP } from "../widgetComponents";
 
 export interface LibraryListItem {
@@ -72,7 +73,8 @@ export function AddSectionButton({ editor, onOpen }: { editor: Editor; onOpen: (
     };
     const onHover = (c?: Component) => {
       const top = topLevelOf(c);
-      if (top) {
+      // Nothing can be added below the site footer preview.
+      if (top && !(isSitePart(top) && top.get("pfPart") === "footer")) {
         setTarget(top);
         place(top);
       }

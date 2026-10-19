@@ -102,6 +102,13 @@ CREATE TABLE IF NOT EXISTS domains (
 );
 CREATE INDEX IF NOT EXISTS domains_page_idx ON domains (page_id);
 
+-- Site-wide settings per sub-account: header/footer templates with display rules, custom CSS/JS.
+CREATE TABLE IF NOT EXISTS site_settings (
+  location_id TEXT PRIMARY KEY,
+  settings    JSONB NOT NULL,
+  updated_at  BIGINT NOT NULL
+);
+
 -- Cached HighLevel data used when serving pages (location info, custom values).
 CREATE TABLE IF NOT EXISTS location_cache (
   location_id TEXT PRIMARY KEY,
@@ -167,16 +174,24 @@ async function createPglite(): Promise<QueryFn> {
   const dir = path.join(process.cwd(), ".data", "pg");
   // PGlite creates the data dir but not its parent (fresh clones have no .data/).
   await (await import("node:fs/promises")).mkdir(path.dirname(dir), { recursive: true });
-  const db = new PGlite(dir);
+  // One PGlite instance per process: the data directory can't be opened twice.
+  g.__gpbPglite ??= new PGlite(dir);
+  const db = g.__gpbPglite;
   await db.exec(SCHEMA);
   return async (text, params = []) => (await db.query<Row>(text, params as unknown[])).rows;
 }
 
 // Cache across hot reloads in dev and across invocations of a warm serverless instance.
-const g = globalThis as unknown as { __gpbDb?: Promise<QueryFn> };
+const g = globalThis as unknown as {
+  __gpbDb?: Promise<QueryFn>;
+  __gpbDbSchema?: string;
+  __gpbPglite?: import("@electric-sql/pglite").PGlite;
+};
 
 function db(): Promise<QueryFn> {
-  if (!g.__gpbDb) {
+  // In dev, hot reloads can bring a new schema while the connection stays cached: set it up again.
+  if (!g.__gpbDb || g.__gpbDbSchema !== SCHEMA_VERSION) {
+    g.__gpbDbSchema = SCHEMA_VERSION;
     g.__gpbDb = (databaseUrl ? createNeon() : createPglite()).catch((err) => {
       g.__gpbDb = undefined; // allow retry on next request
       throw err;

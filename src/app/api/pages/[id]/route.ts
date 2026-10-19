@@ -25,6 +25,11 @@ export const PUT = handle(async (req: Request, { params }: Ctx) => {
       ...(typeof st.ogImage === "string" ? { ogImage: st.ogImage.slice(0, 1000) } : {}),
       ...(typeof st.noindex === "boolean" ? { noindex: st.noindex } : {}),
       ...(st.embedMode === "inline" || st.embedMode === "shadow" ? { embedMode: st.embedMode } : {}),
+      ...(typeof st.hideHeader === "boolean" ? { hideHeader: st.hideHeader } : {}),
+      ...(typeof st.hideFooter === "boolean" ? { hideFooter: st.hideFooter } : {}),
+      ...(typeof st.customCss === "string" ? { customCss: st.customCss.slice(0, 100_000) } : {}),
+      ...(typeof st.headCode === "string" ? { headCode: st.headCode.slice(0, 100_000) } : {}),
+      ...(typeof st.bodyCode === "string" ? { bodyCode: st.bodyCode.slice(0, 100_000) } : {}),
     };
   }
   if (body.theme) page.theme = { ...page.theme, ...body.theme };

@@ -381,3 +381,9 @@
 @media (min-width: 768px) and (max-width: 1023px) {
   [data-gpb-hide="tablet"] { display: none !important; }
 }
+
+/* Site header/footer: wrapper added when a page is served; preview shown read-only in the editor */
+.pf-site-header { display: contents; }
+.gpb-editor .pf-site-part { position: relative; outline: 2px dashed #14b8a6; outline-offset: -2px; }
+.gpb-editor .pf-site-part > :not(style) { opacity: .92; pointer-events: none; }
+.gpb-editor .pf-site-part::after { content: attr(data-pf-site-part) " · read-only here"; position: absolute; top: 6px; left: 6px; z-index: 70; padding: 3px 8px; border-radius: 6px; background: #14b8a6; color: #fff; font: 600 11px/1.3 system-ui, sans-serif; pointer-events: none; }
