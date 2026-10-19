@@ -22,7 +22,9 @@ function isOwnHost(host: string) {
     bare === "127.0.0.1" ||
     bare.endsWith(".localhost") ||
     bare.endsWith(".vercel.app") ||
-    (!!process.env.VERCEL_URL && host === process.env.VERCEL_URL)
+    (!!process.env.VERCEL_URL && host === process.env.VERCEL_URL) ||
+    // The project's production domain on Vercel, so it works even before APP_URL is updated.
+    (!!process.env.VERCEL_PROJECT_PRODUCTION_URL && host === process.env.VERCEL_PROJECT_PRODUCTION_URL)
   );
 }
 
