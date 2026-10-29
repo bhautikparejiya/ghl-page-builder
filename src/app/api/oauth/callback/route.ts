@@ -6,7 +6,13 @@ import { config } from "@/lib/config";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const target = new URL("/installed", config.appUrl);
+  let target: URL;
+  try {
+    target = new URL("/installed", config.appUrl);
+  } catch {
+    console.error(`Invalid APP_URL: ${JSON.stringify(config.appUrl)}`);
+    target = new URL("/installed", url.origin);
+  }
   if (!code) {
     target.searchParams.set("error", "Missing authorization code");
     return NextResponse.redirect(target);

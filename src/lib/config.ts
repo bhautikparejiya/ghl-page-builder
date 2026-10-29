@@ -24,7 +24,11 @@ function env(name: string, fallback = ""): string {
 
 export const config = {
   get appUrl() {
-    return env("APP_URL", "http://localhost:3000").replace(/\/$/, "");
+    // Tolerate common env mistakes (stray quotes/whitespace, missing scheme) so `new URL(..., appUrl)` never throws.
+    let url = env("APP_URL").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+    if (!url) return "http://localhost:3000";
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    return url;
   },
   /**
    * Optional separate origin for hosted pages (/p/:id), e.g. https://pages.example.com.
